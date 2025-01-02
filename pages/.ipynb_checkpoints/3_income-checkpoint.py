@@ -64,14 +64,23 @@ def render_income(
         income_data: pd.DataFrame,
         deductions_data: pd.DataFrame):
 
-    income.sidebar.button("Refresh Data", on_click=utils.fetch_income_deduction_data.clear)
+    income.sidebar.button(
+        "Refresh Data",
+        on_click=utils.fetch_income_deduction_data.clear)
     # income.write(income_data.columns.astype(str))
 
     employers = income_data.Employer.unique()
-    income_descriptions = income_data.Description.unique()
     selected_employers = income.sidebar.multiselect("Employer", options=employers)
-    selected_descriptions = income.sidebar.multiselect("Income Description", options=income_descriptions)
-    start_date, end_date = utils.date_sidebar(income, income_data, "Date")
+
+    income_descriptions = income_data.Description.unique()
+    selected_descriptions = income.sidebar.multiselect(
+        "Income Description",
+        options=income_descriptions)
+
+    financial_years = income_data["Financial Year"].unique()
+    selected_financial_year = income.sidebar.multiselect("Financial Year", options=financial_years)
+
+    start_date, end_date = utils.date_sidebar(income, income_data, "Date", True)
 
     income_data = (
         income_data
@@ -80,7 +89,14 @@ def render_income(
         .loc[lambda df:
              df.Employer.isin(selected_employers)
              if selected_employers else [True] * len(df)]
+        .loc[lambda df:
+             df["Financial Year"].isin(selected_financial_year)
+             if selected_financial_year else [True] * len(df)]
+        .loc[lambda df:
+             df.Description.isin(selected_descriptions)
+             if selected_descriptions else [True] * len(df)]
     )
+
     filtered_deduction = (
         deductions_data
         .loc[lambda df: df.Date > pd.to_datetime(start_date)]
@@ -93,7 +109,6 @@ def render_income(
 
     # Display the data table
     income.subheader("Income Data")
-    income.dataframe(income_data, hide_index=True)
 
     variable_income_aggregation(income, income_data)
 
@@ -145,22 +160,29 @@ def render_income(
     # Employer Contributions
     income.subheader("Income by Employer")
     income_by_employer = (
-        historical_data.groupby(["Employer", "Description"])["Gross Income"]
+        historical_data.groupby(["Employer", "Description"])[["Gross Income", "Salary Sacrifice", "Taxable Income", "Income", "Tax"]]
         .sum()
-        .reset_index()
         .sort_values("Gross Income", ascending=False)
+        .reset_index()
     )
     sunburst = px.sunburst(income_by_employer, path=["Employer", "Description"], values="Gross Income")
     income.plotly_chart(sunburst, use_container_width=True)
+
+    income.subheader("Table of income by employer")
+    income.dataframe(
+        utils.format_income_table(income_by_employer)
+    )
     # Summary Statistics
     income.subheader("Summary Statistics")
     summary_stats = historical_data[["Gross Income", "Tax", "Income"]].sum().to_frame(name="Total")
     summary_stats.loc["Net Income"] = summary_stats.loc["Gross Income"] - summary_stats.loc["Tax"]
     income.table(summary_stats)
+
+    income.dataframe(utils.format_income_table(income_data), hide_index=True)
+    
     
 st.set_page_config(layout="wide")
 income_data, deductions_data = utils.fetch_income_deduction_data()
 render_income(st, income_data, deductions_data)
 
-st.dataframe(income_data, hide_index=True)
     

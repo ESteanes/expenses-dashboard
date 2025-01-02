@@ -16,14 +16,14 @@ def remove_unnamed_columns(df):
 
 
 def calculate_financial_year(date):
-        # Adjust year based on whether the month is July or later
-        if pd.isna(date):
-            return None  # Handle missing dates
-        year = date.year
-        if date.month >= 7:
-            return f"FY {year}/{year + 1}"
-        else:
-            return f"FY {year - 1}/{year}"
+    # Adjust year based on whether the month is July or later
+    if pd.isna(date):
+        return None  # Handle missing dates
+    year = date.year
+    if date.month >= 7:
+        return f"FY {year}/{year + 1}"
+    else:
+        return f"FY {year - 1}/{year}"
 
 
 @st.cache_data
@@ -62,18 +62,31 @@ def fetch_income_deduction_data():
         sheet_name=["Income", "Deductions"]
     )
     income_data = remove_unnamed_columns(income_sheets['Income'])
+    income_data = income_data.fillna(0)
     income_data["Financial Year"] = pd.to_datetime(income_data['Date']).apply(calculate_financial_year)
+    income_data['Taxable Income'] = income_data.apply(
+        lambda row: (
+            (row['Gross Income'] + row['Tax']) if row['Taxable'] == 2 else 0
+        ) +
+        (row['Gross Income'] if row['Taxable'] == 1 else 0) -
+        (row['Salary Sacrifice'] if row['Taxable'] == 1 else 0),
+        axis=1
+    )
 
     deduction_data = remove_unnamed_columns(income_sheets['Deductions'])
     return income_data, deduction_data
 
 
-def date_sidebar(st: DeltaGenerator, df: pd.DataFrame, date_key: str):
+def date_sidebar(st: DeltaGenerator, df: pd.DataFrame, date_key: str, start_at_minimum=False):
     minimum_date = df[date_key].min()
     maximum_date = df[date_key].max()
+    start_date_initial_value = maximum_date - pd.DateOffset(months=1)
+    if start_at_minimum:
+        start_date_initial_value = minimum_date
+
     start_date = st.sidebar.date_input(
         "Start Date",
-        value=maximum_date - pd.DateOffset(months=1),
+        value=start_date_initial_value,
         min_value=minimum_date,
         max_value=maximum_date)
     end_date = st.sidebar.date_input(
@@ -119,3 +132,17 @@ def plot_bar_chart(dataframe, x_column, y_column, title, max_items=20):
             strokeWidth=stroke_width,
         ).configure_scale(bandPaddingInner=0.2).add_params(select, highlight)
     )
+
+
+def format_income_table(income_dataframe: pd.DataFrame):
+    numeric_column_names = [
+        "Gross Income",
+        "Salary Sacrifice",
+        "Taxable Income",
+        "Income",
+        "Tax"
+    ]
+    income_dataframe_style = income_dataframe.style.format(
+            {columnname: '${:,.2f}' for columnname in numeric_column_names}
+        )
+    return income_dataframe_style
