@@ -3,6 +3,26 @@ import pandas as pd
 import os
 import altair as alt
 from streamlit.delta_generator import DeltaGenerator
+from datetime import datetime
+import requests
+from io import StringIO
+
+
+SPENDING_SHEET_NAME = "Spending"
+SPENDING_DATA_SCHEMA = [
+    "Item",
+    "Cost",
+    "Quantity",
+    "Measure",
+    "Location",
+    "Shop",
+    "Details",
+    "Tag",
+    "Date",
+    "Receipt Ref",
+    "Receipt",
+    "transactionId"
+]
 
 
 def dataframe_in_list(df, key, list_items):
@@ -32,7 +52,7 @@ def fetch_spending_data():
     spending_excel_path = os.getenv("EXCEL_PATH_SPENDING")
     spending_data = pd.read_excel(
         spending_excel_path,
-        sheet_name=["Spending", "Top_Table", "Middle Table", "Base Table", "Location"])
+        sheet_name=[SPENDING_SHEET_NAME, "Top_Table", "Middle Table", "Base Table", "Location"])
     
     df = remove_unnamed_columns(spending_data['Spending'])
     top_table = remove_unnamed_columns(spending_data['Top_Table'])
@@ -48,9 +68,10 @@ def fetch_spending_data():
     )
     df = (
         df
-        .merge(hierarchy, on='Item')
-        .merge(location, on='Location')
+        .merge(hierarchy, on='Item', how='left')
+        .merge(location, on='Location', how='left')
     )
+    df['Details'] = df['Details'].astype(str)
     return df
 
 
@@ -62,18 +83,20 @@ def fetch_income_deduction_data():
         sheet_name=["Income", "Deductions"]
     )
     income_data = remove_unnamed_columns(income_sheets['Income'])
-    income_data = income_data.fillna(0)
+    income_data[["Salary Sacrifice", "Tax"]] = income_data[["Salary Sacrifice", "Tax"]].fillna(0)
     income_data["Financial Year"] = pd.to_datetime(income_data['Date']).apply(calculate_financial_year)
     income_data['Taxable Income'] = income_data.apply(
         lambda row: (
-            (row['Gross Income'] + row['Tax']) if row['Taxable'] == 2 else 0
-        ) +
-        (row['Gross Income'] if row['Taxable'] == 1 else 0) -
-        (row['Salary Sacrifice'] if row['Taxable'] == 1 else 0),
+            row['Gross Income'] - row['Salary Sacrifice']
+            if row['Taxable'] == 1 else
+            row['Gross Income'] + row['Tax'])
+        if row['Taxable'] == 2
+        else 0,
         axis=1
     )
 
     deduction_data = remove_unnamed_columns(income_sheets['Deductions'])
+    deduction_data["Financial Year"] = pd.to_datetime(deduction_data['Date']).apply(calculate_financial_year)
     return income_data, deduction_data
 
 
@@ -95,7 +118,7 @@ def date_sidebar(st: DeltaGenerator, df: pd.DataFrame, date_key: str, start_at_m
         min_value=minimum_date,
         max_value=maximum_date)
     return start_date, end_date
-    
+
 
 def plot_bar_chart(dataframe, x_column, y_column, title, max_items=20):
     """Helper function to generate a bar chart with custom axis formatting."""
@@ -134,15 +157,58 @@ def plot_bar_chart(dataframe, x_column, y_column, title, max_items=20):
     )
 
 
-def format_income_table(income_dataframe: pd.DataFrame):
-    numeric_column_names = [
+def format_income_table(dataframe: pd.DataFrame, column_names=[
         "Gross Income",
         "Salary Sacrifice",
         "Taxable Income",
         "Income",
-        "Tax"
-    ]
-    income_dataframe_style = income_dataframe.style.format(
-            {columnname: '${:,.2f}' for columnname in numeric_column_names}
+        "Tax"]):
+    dataframe_formatted = dataframe.style.format(
+            {columnname: '${:,.2f}' for columnname in column_names}
         )
-    return income_dataframe_style
+    return dataframe_formatted
+
+
+# Fetch the data from Upbank Client as a csv then read into a dataframe
+@st.cache_data
+def fetch_transaction_data(start_date=pd.Timestamp.today() - pd.DateOffset(months=1), end_date=pd.Timestamp.today()):
+    transactions_uri = "http://localhost:8080"
+    csv_endpoint = "/api/v1/transactions/csv"
+    params = {
+        "startDate": f"{start_date}T00:00:00.000Z",
+        "endDate": f"{end_date}T00:00:00.000Z",
+        "numTransactions": 10000,
+        "accountId": "a90b55ad-1bcb-4e75-b407-0e0e1e5c8a6d",
+        "transactionTypes": ['Payment', 'Purchase', 'Refund']
+    }
+    try:
+        # Fetch the CSV data
+        response = requests.get(transactions_uri + csv_endpoint, params=params)
+        response.raise_for_status()  # Raise an exception for HTTP errors
+
+        # Convert CSV response to a pandas DataFrame
+        csv_data = response.content.decode("utf-8")
+        dataframe = pd.read_csv(StringIO(csv_data))
+        return dataframe
+
+    except requests.exceptions.RequestException as e:
+        st.error(f"Please check that the service is running successfully at {transactions_uri}.\n\n An error occurred while fetching the data: {e}")
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"An unexpected error occurred: {e}")
+        return pd.DataFrame()
+
+
+def save_data(df: pd.DataFrame):
+    with pd.ExcelWriter(
+        os.getenv("EXCEL_PATH_SPENDING"),
+        mode='a',
+        if_sheet_exists='replace',
+        engine='openpyxl',
+        date_format="YYYY-MM-DD",
+        datetime_format="YYYY-MM-DD"
+    ) as writer:
+        df.to_excel(
+            writer,
+            sheet_name=SPENDING_SHEET_NAME,
+        )
