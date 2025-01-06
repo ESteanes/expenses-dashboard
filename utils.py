@@ -23,6 +23,20 @@ SPENDING_DATA_SCHEMA = [
     "Receipt",
     "transactionId"
 ]
+INCOME_SHEET_NAME = "Income"
+INCOME_DATA_SCHEMA = [
+    "Gross Income",
+    "Salary Sacrifice",
+    "Tax",
+    "Income",
+    "Date",
+    "Employer",
+    "Description",
+    "Taxable",
+    "Received in bank account",
+    "Comment"
+]
+TAXABLE_OPTIONS = ["Not-taxable", "Taxable", "Franked Dividends"]
 
 
 def dataframe_in_list(df, key, list_items):
@@ -88,9 +102,9 @@ def fetch_income_deduction_data():
     income_data['Taxable Income'] = income_data.apply(
         lambda row: (
             row['Gross Income'] - row['Salary Sacrifice']
-            if row['Taxable'] == 1 else
+            if row['Taxable'] == 'Taxable' else
             row['Gross Income'] + row['Tax'])
-        if row['Taxable'] == 2
+        if row['Taxable'] == 'Franked Dividends'
         else 0,
         axis=1
     )
@@ -199,9 +213,9 @@ def fetch_transaction_data(start_date=pd.Timestamp.today() - pd.DateOffset(month
         return pd.DataFrame()
 
 
-def save_data(df: pd.DataFrame):
+def save_data(df: pd.DataFrame, file_path: str, sheet_name: str):
     with pd.ExcelWriter(
-        os.getenv("EXCEL_PATH_SPENDING"),
+        file_path,
         mode='a',
         if_sheet_exists='replace',
         engine='openpyxl',
@@ -210,5 +224,5 @@ def save_data(df: pd.DataFrame):
     ) as writer:
         df.to_excel(
             writer,
-            sheet_name=SPENDING_SHEET_NAME,
+            sheet_name=sheet_name,
         )

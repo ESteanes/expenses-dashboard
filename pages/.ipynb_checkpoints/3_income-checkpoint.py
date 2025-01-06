@@ -4,6 +4,7 @@ import pandas as pd
 from streamlit.delta_generator import DeltaGenerator
 import plotly.express as px
 import utils
+import os
 
 
 def variable_income_aggregation(
@@ -57,6 +58,87 @@ def variable_income_aggregation(
     )
     # Display the layered chart
     income.altair_chart(bar_chart, use_container_width=True)
+
+
+@st.dialog("Add some income")
+def add_income(existing_income: pd.DataFrame):
+    with st.expander("Duplicate an existing income entry"):
+        prior_income_entry = st.dataframe(
+            existing_income,
+            use_container_width=True,
+            hide_index=True,
+            on_select="rerun",
+            selection_mode="single-row"
+        )
+    # Form fields
+    if prior_income_entry.selection.rows:
+        # Get the data for the selected row
+        selected_row_data = existing_income.iloc[prior_income_entry.selection.rows[0]]
+        taxable_value = selected_row_data["Taxable"]
+        gross_income_value = selected_row_data["Gross Income"]
+        salary_sacrifice_value = selected_row_data["Salary Sacrifice"]
+        tax_value = selected_row_data["Tax"]
+        date_value = pd.to_datetime(selected_row_data["Date"])
+        employer_value = selected_row_data["Employer"]
+        description_value = selected_row_data["Description"]
+        received_in_bank_value = selected_row_data["Received in bank account"]
+        comment_value = selected_row_data["Comment"]
+    else:
+        # Default values if no row is selected
+        taxable_value = utils.TAXABLE_OPTIONS[0]  # Default to first option
+        gross_income_value = 0.0
+        salary_sacrifice_value = 0.0
+        tax_value = 0.0
+        date_value = pd.Timestamp.today()
+        employer_value = ""
+        description_value = ""
+        received_in_bank_value = "No"
+        comment_value = ""
+
+    # Form fields
+    taxable = st.selectbox(
+        "Taxable",
+        options=utils.TAXABLE_OPTIONS)
+    gross_income = st.number_input("Gross Income", min_value=0.0, format="%.2f", value=gross_income_value)
+    salary_sacrifice = st.number_input("Salary Sacrifice", min_value=0.0, format="%.2f", value=salary_sacrifice_value)
+    tax = st.number_input("Tax", min_value=0.0, format="%.2f", value=tax_value)
+    # Dynamically calculate income based on the inputs
+    income = gross_income - salary_sacrifice - tax
+    st.number_input("Income", value=income, min_value=0.0, format="%.2f", disabled=True)
+    date = st.date_input("Date", value=date_value, max_value=pd.Timestamp.today())
+    employer = st.text_input("Employer", value=employer_value)
+    description = st.text_input("Description", value=description_value)
+    received_in_bank = st.radio(
+        "Received in Bank Account?",
+        options=["Yes", "No"],
+        index=1
+    )
+    comment = st.text_area("Comment", value=comment_value)
+
+    if st.button("Submit"):
+        # Create a dictionary from the modal data
+        new_row = {
+            "Gross Income": gross_income,
+            "Salary Sacrifice": salary_sacrifice,
+            "Tax": tax,
+            "Income": income,
+            "Date": date,
+            "Employer": employer,
+            "Description": description,
+            "Taxable": taxable,
+            "Received in bank account": received_in_bank,
+            "Comment": comment
+        }
+        edited_df = pd.concat(
+                [existing_income, pd.DataFrame([new_row])],
+                ignore_index=True
+            )[utils.INCOME_DATA_SCHEMA]
+        utils.save_data(
+            edited_df,
+            os.getenv("EXCEL_PATH_INCOME"),
+            utils.INCOME_SHEET_NAME)
+        utils.fetch_income_deduction_data.clear()
+        st.rerun()
 
 
 def render_income(
@@ -179,8 +261,11 @@ def render_income(
     income.table(summary_stats)
 
     income.dataframe(utils.format_income_table(income_data), hide_index=True)
-    
-    
+
+    if st.button("Add Income Data"):
+        add_income(income_data)
+
+
 st.set_page_config(layout="wide")
 income_data, deductions_data = utils.fetch_income_deduction_data()
 render_income(st, income_data, deductions_data)
