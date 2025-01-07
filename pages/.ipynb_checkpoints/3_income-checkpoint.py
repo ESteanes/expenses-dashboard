@@ -141,6 +141,25 @@ def add_income(existing_income: pd.DataFrame):
         st.rerun()
 
 
+@st.dialog("Remove income")
+def remove_income(existing_income: pd.DataFrame):
+    prior_income_entry = st.dataframe(
+        existing_income,
+        use_container_width=True,
+        hide_index=True,
+        on_select="rerun",
+        selection_mode="single-row"
+    )
+    if st.button("Remove"):
+        utils.save_data(
+            existing_income.drop([prior_income_entry.selection.rows[0]]),
+            os.getenv("EXCEL_PATH_INCOME"),
+            utils.INCOME_SHEET_NAME)
+        utils.fetch_income_deduction_data.clear()
+        st.rerun()
+
+
+
 def render_income(
         income: DeltaGenerator,
         income_data: pd.DataFrame,
@@ -163,7 +182,10 @@ def render_income(
     selected_financial_year = income.sidebar.multiselect("Financial Year", options=financial_years)
 
     start_date, end_date = utils.date_sidebar(income, income_data, "Date", True)
-
+    if income.sidebar.button("Add Income Data"):
+        add_income(income_data)
+    if income.sidebar.button("Remove Income Data"):
+        remove_income(income_data)
     income_data = (
         income_data
         .loc[lambda df: df.Date >= pd.to_datetime(start_date)]
@@ -262,8 +284,7 @@ def render_income(
 
     income.dataframe(utils.format_income_table(income_data), hide_index=True)
 
-    if st.button("Add Income Data"):
-        add_income(income_data)
+
 
 
 st.set_page_config(layout="wide")
