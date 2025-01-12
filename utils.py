@@ -1,12 +1,11 @@
-import streamlit as st
-import pandas as pd
 import os
-import altair as alt
-from streamlit.delta_generator import DeltaGenerator
-from datetime import datetime
-import requests
 from io import StringIO
 
+import altair as alt
+import pandas as pd
+import requests
+import streamlit as st
+from streamlit.delta_generator import DeltaGenerator
 
 SPENDING_SHEET_NAME = "Spending"
 SPENDING_DATA_SCHEMA = [
@@ -67,13 +66,13 @@ def fetch_spending_data():
     spending_data = pd.read_excel(
         spending_excel_path,
         sheet_name=[SPENDING_SHEET_NAME, "Top_Table", "Middle Table", "Base Table", "Location"])
-    
+
     df = remove_unnamed_columns(spending_data['Spending'])
     top_table = remove_unnamed_columns(spending_data['Top_Table'])
     middle_table = remove_unnamed_columns(spending_data['Middle Table'])
     base_table = remove_unnamed_columns(spending_data['Base Table'])
     location = remove_unnamed_columns(spending_data['Location'])
-    
+
     hierarchy = (
         base_table
         .rename(columns={'All Items': 'Item'})
@@ -98,8 +97,8 @@ def fetch_income_deduction_data():
     )
     income_data = remove_unnamed_columns(income_sheets['Income'])
     income_data.loc[:, ["Salary Sacrifice", "Tax"]] = income_data.loc[:, [
-        "Salary Sacrifice", "Tax"
-    ]].fillna(0)
+                                                                             "Salary Sacrifice", "Tax"
+                                                                         ]].fillna(0)
     income_data.loc[:, "Financial Year"] = pd.to_datetime(
         income_data.loc[:, 'Date']).apply(calculate_financial_year)
     income_data.loc[:, 'Taxable Income'] = income_data.apply(
@@ -183,14 +182,14 @@ def plot_bar_chart(dataframe, x_column, y_column, title, max_items=20):
 
 
 def format_income_table(dataframe: pd.DataFrame, column_names=[
-        "Gross Income",
-        "Salary Sacrifice",
-        "Taxable Income",
-        "Income",
-        "Tax"]):
+    "Gross Income",
+    "Salary Sacrifice",
+    "Taxable Income",
+    "Income",
+    "Tax"]):
     dataframe_formatted = dataframe.style.format(
-            {columnname: '${:,.2f}' for columnname in column_names}
-        )
+        {columnname: '${:,.2f}' for columnname in column_names}
+    )
     return dataframe_formatted
 
 
@@ -207,7 +206,8 @@ def fetch_transaction_data(
         "endDate": f"{end_date}T00:00:00.000Z",
         "numTransactions": 10000,
         "accountId": "a90b55ad-1bcb-4e75-b407-0e0e1e5c8a6d",
-        "transactionTypes": ['Payment', 'Purchase', 'Refund']
+        # We need EFTPOS Deposit for BeemIt transactions as they are processed using EFTPOS
+        "transactionTypes": ['Payment', 'Purchase', 'Refund', 'EFTPOS Deposit']
     }
     try:
         # Fetch the CSV data
@@ -220,7 +220,8 @@ def fetch_transaction_data(
         return dataframe
 
     except requests.exceptions.RequestException as e:
-        st.error(f"Please check that the service is running successfully at {transactions_uri}.\n\n An error occurred while fetching the data: {e}")
+        st.error(
+            f"Please check that the service is running successfully at {transactions_uri}.\n\n An error occurred while fetching the data: {e}")
         return pd.DataFrame()
     except Exception as e:
         st.error(f"An unexpected error occurred: {e}")
