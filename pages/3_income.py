@@ -1,15 +1,17 @@
-import streamlit as st
+import os
+
 import altair as alt
 import pandas as pd
-from streamlit.delta_generator import DeltaGenerator
 import plotly.express as px
+import streamlit as st
+from streamlit.delta_generator import DeltaGenerator
+
 import utils
-import os
 
 
 def variable_income_aggregation(
-        income: DeltaGenerator,
-        income_data: pd.DataFrame):
+    income: DeltaGenerator,
+    income_data: pd.DataFrame):
     # Gross Income Over Time
     income.subheader("Gross Income Over Time with Breakdown")
     time_aggregation = income.selectbox(
@@ -130,9 +132,9 @@ def add_income(existing_income: pd.DataFrame):
             "Comment": comment
         }
         edited_df = pd.concat(
-                [existing_income, pd.DataFrame([new_row])],
-                ignore_index=True
-            )[utils.INCOME_DATA_SCHEMA]
+            [existing_income, pd.DataFrame([new_row])],
+            ignore_index=True
+        )[utils.INCOME_DATA_SCHEMA]
         utils.save_data(
             edited_df,
             os.getenv("EXCEL_PATH_INCOME"),
@@ -159,12 +161,10 @@ def remove_income(existing_income: pd.DataFrame):
         st.rerun()
 
 
-
 def render_income(
-        income: DeltaGenerator,
-        income_data: pd.DataFrame,
-        deductions_data: pd.DataFrame):
-
+    income: DeltaGenerator,
+    income_data: pd.DataFrame,
+    deductions_data: pd.DataFrame):
     income.sidebar.button(
         "Refresh Data",
         on_click=utils.fetch_income_deduction_data.clear)
@@ -182,23 +182,25 @@ def render_income(
     selected_financial_year = income.sidebar.multiselect("Financial Year", options=financial_years)
 
     start_date, end_date = utils.date_sidebar(income, income_data, "Date", True)
-    if income.sidebar.button("Add Income Data"):
+    col1, col2 = st.sidebar.columns(2)
+    if col1.button("Add Income Data"):
         add_income(income_data)
-    if income.sidebar.button("Remove Income Data"):
+    if col2.button("Remove Income Data"):
         remove_income(income_data)
+
     income_data = (
         income_data
         .loc[lambda df: df.Date >= pd.to_datetime(start_date)]
         .loc[lambda df: df.Date <= pd.to_datetime(end_date)]
         .loc[lambda df:
-             df.Employer.isin(selected_employers)
-             if selected_employers else [True] * len(df)]
+        df.Employer.isin(selected_employers)
+        if selected_employers else [True] * len(df)]
         .loc[lambda df:
-             df["Financial Year"].isin(selected_financial_year)
-             if selected_financial_year else [True] * len(df)]
+        df["Financial Year"].isin(selected_financial_year)
+        if selected_financial_year else [True] * len(df)]
         .loc[lambda df:
-             df.Description.isin(selected_descriptions)
-             if selected_descriptions else [True] * len(df)]
+        df.Description.isin(selected_descriptions)
+        if selected_descriptions else [True] * len(df)]
     )
 
     filtered_deduction = (
@@ -264,7 +266,8 @@ def render_income(
     # Employer Contributions
     income.subheader("Income by Employer")
     income_by_employer = (
-        historical_data.groupby(["Employer", "Description"])[["Gross Income", "Salary Sacrifice", "Taxable Income", "Income", "Tax"]]
+        historical_data.groupby(["Employer", "Description"])[
+            ["Gross Income", "Salary Sacrifice", "Taxable Income", "Income", "Tax"]]
         .sum()
         .sort_values("Gross Income", ascending=False)
         .reset_index()
@@ -285,10 +288,6 @@ def render_income(
     income.dataframe(utils.format_income_table(income_data), hide_index=True)
 
 
-
-
 st.set_page_config(layout="wide")
 income_data, deductions_data = utils.fetch_income_deduction_data()
 render_income(st, income_data, deductions_data)
-
-    

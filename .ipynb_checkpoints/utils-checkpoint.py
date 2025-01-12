@@ -97,24 +97,35 @@ def fetch_income_deduction_data():
         sheet_name=["Income", "Deductions"]
     )
     income_data = remove_unnamed_columns(income_sheets['Income'])
-    income_data[["Salary Sacrifice", "Tax"]] = income_data[["Salary Sacrifice", "Tax"]].fillna(0)
-    income_data["Financial Year"] = pd.to_datetime(income_data['Date']).apply(calculate_financial_year)
-    income_data['Taxable Income'] = income_data.apply(
+    income_data.loc[:, ["Salary Sacrifice", "Tax"]] = income_data.loc[:, [
+        "Salary Sacrifice", "Tax"
+    ]].fillna(0)
+    income_data.loc[:, "Financial Year"] = pd.to_datetime(
+        income_data.loc[:, 'Date']).apply(calculate_financial_year)
+    income_data.loc[:, 'Taxable Income'] = income_data.apply(
         lambda row: (
             row['Gross Income'] - row['Salary Sacrifice']
             if row['Taxable'] == 'Taxable' else
-            row['Gross Income'] + row['Tax'])
-        if row['Taxable'] == 'Franked Dividends'
-        else 0,
+            row['Gross Income'] + row['Tax']
+            if row['Taxable'] == 'Franked Dividends' else
+            0
+        ),
         axis=1
     )
 
     deduction_data = remove_unnamed_columns(income_sheets['Deductions'])
-    deduction_data["Financial Year"] = pd.to_datetime(deduction_data['Date']).apply(calculate_financial_year)
+    deduction_data["Financial Year"] = pd.to_datetime(
+        deduction_data['Date']
+    ).apply(calculate_financial_year)
     return income_data, deduction_data
 
 
-def date_sidebar(st: DeltaGenerator, df: pd.DataFrame, date_key: str, start_at_minimum=False):
+def date_sidebar(
+    st: DeltaGenerator,
+    df: pd.DataFrame,
+    date_key: str,
+    start_at_minimum=False
+):
     minimum_date = df[date_key].min()
     maximum_date = df[date_key].max()
     start_date_initial_value = maximum_date - pd.DateOffset(months=1)
@@ -185,7 +196,10 @@ def format_income_table(dataframe: pd.DataFrame, column_names=[
 
 # Fetch the data from Upbank Client as a csv then read into a dataframe
 @st.cache_data
-def fetch_transaction_data(start_date=pd.Timestamp.today() - pd.DateOffset(months=1), end_date=pd.Timestamp.today()):
+def fetch_transaction_data(
+    start_date=pd.Timestamp.today() - pd.DateOffset(months=1),
+    end_date=pd.Timestamp.today()
+):
     transactions_uri = "http://localhost:8080"
     csv_endpoint = "/api/v1/transactions/csv"
     params = {
