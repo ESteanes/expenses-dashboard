@@ -1,10 +1,9 @@
-import streamlit as st
-import altair as alt
-import pandas as pd
 import numpy as np
+import pandas as pd
+import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
+
 import utils
-import os
 
 
 def add_item():
@@ -21,20 +20,21 @@ def refresh_all_the_data():
 
 def clean_transaction_data(transaction_data: pd.DataFrame):
     clean = transaction_data.rename(columns={
-            "Category": "Upbank Category",
-            "empty": "Quantity",
-            "Empty": "Measure",
-            "rawText": "Upbank Text",
-            "description": "Shop",
-            "empty_1": "Details",
-            "empty_2": "Tag",
-            "createdAt": "Date"
-        })
+        "Category": "Upbank Category",
+        "empty": "Quantity",
+        "Empty": "Measure",
+        "rawText": "Upbank Text",
+        "description": "Shop",
+        "empty_1": "Details",
+        "empty_2": "Tag",
+        "createdAt": "Date"
+    })
     clean['Cost'] = clean['Cost'] * -1
     clean['Item'] = pd.Series(dtype='str')
     clean['Location'] = pd.Series(dtype='str')
     clean['Date'] = pd.to_datetime(clean['Date'])
     clean['Details'] = clean['Details'].dropna().astype(str)
+    clean['Tag'] = clean['Tag'].dropna().astype(str)
     return clean
 
 
@@ -76,12 +76,6 @@ def get_info(spending_data: pd.DataFrame):
         "Shop": st.column_config.Column(
             label="Shop"
         ),
-        # "Shop": st.column_config.SelectboxColumn(
-        #     label="Shop",
-        #     options=np.append(
-        #         spending_data.Shop.dropna().unique(),
-        #         st.session_state.additional_items),
-        # ),
         "Details": st.column_config.TextColumn(
             label="Details"
         ),
@@ -121,7 +115,7 @@ def get_info(spending_data: pd.DataFrame):
 
 
 def save_edited_values(edited_df: pd.DataFrame):
-    utils.save_data(edited_df, os.getenv("EXCEL_PATH_SPENDING"), utils.SPENDING_SHEET_NAME)
+    utils.save_data(edited_df, utils.SPENDING_PATH, utils.SPENDING_SHEET_NAME)
     refresh_all_the_data()
 
 
@@ -149,82 +143,102 @@ def initialise_sidebar(inputs: DeltaGenerator):
 
 
 @st.dialog("Add expenses")
-def add_expenses(existing_income: pd.DataFrame):
+def add_expenses(existing_expenses: pd.DataFrame):
     with st.expander("Duplicate an existing expense entry"):
-        prior_income_entry = st.dataframe(
-            existing_income,
+        prior_expenses_entry = st.dataframe(
+            existing_expenses,
             use_container_width=True,
             hide_index=True,
             on_select="rerun",
             selection_mode="single-row"
         )
     # Form fields
-    if prior_income_entry.selection.rows:
+    if prior_expenses_entry.selection.rows:
         # Get the data for the selected row
-        selected_row_data = existing_income.iloc[prior_income_entry.selection.rows[0]]
-        taxable_value = selected_row_data["Taxable"]
-        gross_income_value = selected_row_data["Gross Income"]
-        salary_sacrifice_value = selected_row_data["Salary Sacrifice"]
-        tax_value = selected_row_data["Tax"]
-        date_value = pd.to_datetime(selected_row_data["Date"])
-        employer_value = selected_row_data["Employer"]
-        description_value = selected_row_data["Description"]
-        received_in_bank_value = selected_row_data["Received in bank account"]
-        comment_value = selected_row_data["Comment"]
+        selected_row_data = existing_expenses.iloc[prior_expenses_entry.selection.rows[0]]
+        item_value = selected_row_data["Item"]
+        cost_value = selected_row_data["Cost"]
+        quantity_value = selected_row_data["Quantity"]
+        measure_value = selected_row_data["Measure"]
+        location_value = selected_row_data["Location"]
+        shop_value = selected_row_data["Shop"]
+        details_value = selected_row_data["Details"]
+        tag_value = selected_row_data["Tag"]
+        date_value = selected_row_data["Date"]
+        receipt_ref_value = selected_row_data["Receipt Ref"]
+        receipt_value = selected_row_data["Receipt"]
+        transaction_id_value = selected_row_data["transactionId"]
     else:
         # Default values if no row is selected
-        taxable_value = utils.TAXABLE_OPTIONS[0]  # Default to first option
-        gross_income_value = 0.0
-        salary_sacrifice_value = 0.0
-        tax_value = 0.0
-        date_value = pd.Timestamp.today()
-        employer_value = ""
-        description_value = ""
-        received_in_bank_value = "No"
-        comment_value = ""
+        item_value = ""
+        cost_value = 0.0
+        quantity_value = 0.0
+        measure_value = ""
+        location_value = ""
+        shop_value = ""
+        details_value = ""
+        tag_value = ""
+        date_value = pd.Timestamp.now()
+        receipt_ref_value = ""
+        receipt_value = ""
+        transaction_id_value = ""
 
     # Form fields
-    taxable = st.selectbox(
-        "Taxable",
-        options=utils.TAXABLE_OPTIONS)
-    gross_income = st.number_input("Gross Income", min_value=0.0, format="%.2f", value=gross_income_value)
-    salary_sacrifice = st.number_input("Salary Sacrifice", min_value=0.0, format="%.2f", value=salary_sacrifice_value)
-    tax = st.number_input("Tax", min_value=0.0, format="%.2f", value=tax_value)
-    # Dynamically calculate income based on the inputs
-    income = gross_income - salary_sacrifice - tax
-    st.number_input("Income", value=income, min_value=0.0, format="%.2f", disabled=True)
+    item = st.selectbox("Item", options=np.append(
+        existing_expenses.Item.unique(),
+        st.session_state.additional_items), placeholder=item_value)
+    cost = st.number_input("Cost", min_value=0.0, format="%.2f", value=cost_value)
+    quantity = st.number_input("Quantity", min_value=0.0, format="%.2f", value=quantity_value)
+    measure = st.selectbox("Measure", options=np.append(
+        existing_expenses.Measure.unique(),
+        st.session_state.additional_items), placeholder=measure_value)
+    location = st.selectbox("Location", options=np.append(
+        existing_expenses.Location.unique(),
+        st.session_state.additional_items), placeholder=location_value)
+    shop = st.selectbox("Shop", options=np.append(
+        existing_expenses.Shop.unique(),
+        st.session_state.additional_items), placeholder=shop_value)
+    details = st.text_area("Details", value=details_value)
+    tag = st.selectbox("Location", options=np.append(
+        existing_expenses.Tag.unique(),
+        st.session_state.additional_items), placeholder=tag_value)
     date = st.date_input("Date", value=date_value, max_value=pd.Timestamp.today())
-    employer = st.text_input("Employer", value=employer_value)
-    description = st.text_input("Description", value=description_value)
-    received_in_bank = st.radio(
-        "Received in Bank Account?",
-        options=["Yes", "No"],
-        index=1
-    )
-    comment = st.text_area("Comment", value=comment_value)
+
+    ### Currently don't support adding receipts yet
+
+    # receipt_ref = st.selectbox("Receipt Ref", options=np.append(
+    #     existing_expenses['Receipt Ref'].unique(),
+    #     st.session_state.additional_items), placeholder=receipt_ref_value)
+    # receipt = st.selectbox("Receipt", options=np.append(
+    #     existing_expenses['Receipt'].unique(),
+    #     st.session_state.additional_items), placeholder=receipt_value)
+
+    transaction_id = st.text_input("Employer", value=transaction_id_value)
 
     if st.button("Submit"):
         # Create a dictionary from the modal data
         new_row = {
-            "Gross Income": gross_income,
-            "Salary Sacrifice": salary_sacrifice,
-            "Tax": tax,
-            "Income": income,
+            "Item": item,
+            "Cost": cost,
+            "Quantity": quantity,
+            "Measure": measure,
+            "Location": location,
+            "Shop": shop,
+            "Details": details,
+            "Tag": tag,
             "Date": date,
-            "Employer": employer,
-            "Description": description,
-            "Taxable": taxable,
-            "Received in bank account": received_in_bank,
-            "Comment": comment
+            "Receipt Ref": "",
+            "Receipt": "",
+            "transactionId": transaction_id
         }
         edited_df = pd.concat(
-                [existing_income, pd.DataFrame([new_row])],
-                ignore_index=True
-            )[utils.INCOME_DATA_SCHEMA]
+            [existing_expenses, pd.DataFrame([new_row])],
+            ignore_index=True
+        )[utils.INCOME_DATA_SCHEMA]
         utils.save_data(
             edited_df,
-            os.getenv("EXCEL_PATH_INCOME"),
-            utils.INCOME_SHEET_NAME)
+            utils.SPENDING_PATH,
+            utils.SPENDING_SHEET_NAME)
         utils.fetch_income_deduction_data.clear()
         st.rerun()
 
@@ -235,10 +249,11 @@ def render_transaction_input(inputs: DeltaGenerator):
     if transactions_data.empty:
         st.write("No transaction data fetched")
         return
-    # inputs.dataframe(transactions_data)
-    # inputs.write(transactions_data.columns)
 
     categorised_transactions = utils.fetch_spending_data()
+    col1, col2 = st.sidebar.columns(2)
+    if col1.button("Add Income Data"):
+        add_expenses(categorised_transactions)
     # only show the uncategorised transactions
     uncategorised_transactions = transactions_data[
         ~transactions_data['transactionId'].isin(categorised_transactions['transactionId'])
@@ -246,8 +261,6 @@ def render_transaction_input(inputs: DeltaGenerator):
     uncategorised_transactions = clean_transaction_data(uncategorised_transactions)
 
     inputs.subheader("Uncategorised expenses")
-    # inputs.write(uncategorised_transactions)
-    # inputs.write(categorised_transactions)
     column_config, column_order = get_info(categorised_transactions)
     edited_transactions = inputs.data_editor(
         uncategorised_transactions.style.format(
