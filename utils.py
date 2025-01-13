@@ -98,9 +98,9 @@ def fetch_income_deduction_data():
         sheet_name=["Income", "Deductions"]
     )
     income_data = remove_unnamed_columns(income_sheets['Income'])
-    income_data.loc[:, ["Salary Sacrifice", "Tax"]] = income_data.loc[:, [
-                                                                             "Salary Sacrifice", "Tax"
-                                                                         ]].fillna(0)
+    income_data.loc[:, ["Salary Sacrifice", "Tax"]] = income_data.loc[:,
+                                                      ["Salary Sacrifice", "Tax"]
+                                                      ].fillna(0)
     income_data.loc[:, "Financial Year"] = pd.to_datetime(
         income_data.loc[:, 'Date']).apply(calculate_financial_year)
     income_data.loc[:, 'Taxable Income'] = income_data.apply(
