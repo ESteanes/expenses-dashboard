@@ -22,6 +22,8 @@ SPENDING_DATA_SCHEMA = [
     "Receipt",
     "transactionId"
 ]
+SPENDING_PATH = os.getenv("EXCEL_PATH_SPENDING")
+
 INCOME_SHEET_NAME = "Income"
 INCOME_DATA_SCHEMA = [
     "Gross Income",
@@ -36,6 +38,7 @@ INCOME_DATA_SCHEMA = [
     "Comment"
 ]
 TAXABLE_OPTIONS = ["Not-taxable", "Taxable", "Franked Dividends"]
+INCOME_PATH = os.getenv("EXCEL_PATH_INCOME")
 
 
 def dataframe_in_list(df, key, list_items):
@@ -62,9 +65,8 @@ def calculate_financial_year(date):
 @st.cache_data
 def fetch_spending_data():
     # Data ingest and basic prep hello
-    spending_excel_path = os.getenv("EXCEL_PATH_SPENDING")
     spending_data = pd.read_excel(
-        spending_excel_path,
+        SPENDING_PATH,
         sheet_name=[SPENDING_SHEET_NAME, "Top_Table", "Middle Table", "Base Table", "Location"])
 
     df = remove_unnamed_columns(spending_data['Spending'])
@@ -85,14 +87,14 @@ def fetch_spending_data():
         .merge(location, on='Location', how='left')
     )
     df['Details'] = df['Details'].astype(str)
+    df['Tag'] = df['Tag'].astype(str)
     return df
 
 
 @st.cache_data
 def fetch_income_deduction_data():
-    income_excel_path = os.getenv("EXCEL_PATH_INCOME")
     income_sheets = pd.read_excel(
-        income_excel_path,
+        INCOME_PATH,
         sheet_name=["Income", "Deductions"]
     )
     income_data = remove_unnamed_columns(income_sheets['Income'])
@@ -181,12 +183,12 @@ def plot_bar_chart(dataframe, x_column, y_column, title, max_items=20):
     )
 
 
-def format_income_table(dataframe: pd.DataFrame, column_names=[
+def format_income_table(dataframe: pd.DataFrame, column_names=(
     "Gross Income",
     "Salary Sacrifice",
     "Taxable Income",
     "Income",
-    "Tax"]):
+    "Tax")):
     dataframe_formatted = dataframe.style.format(
         {columnname: '${:,.2f}' for columnname in column_names}
     )

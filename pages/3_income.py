@@ -1,5 +1,3 @@
-import os
-
 import altair as alt
 import pandas as pd
 import plotly.express as px
@@ -137,7 +135,7 @@ def add_income(existing_income: pd.DataFrame):
         )[utils.INCOME_DATA_SCHEMA]
         utils.save_data(
             edited_df,
-            os.getenv("EXCEL_PATH_INCOME"),
+            utils.INCOME_PATH,
             utils.INCOME_SHEET_NAME)
         utils.fetch_income_deduction_data.clear()
         st.rerun()
@@ -155,7 +153,7 @@ def remove_income(existing_income: pd.DataFrame):
     if st.button("Remove"):
         utils.save_data(
             existing_income.drop([prior_income_entry.selection.rows[0]]),
-            os.getenv("EXCEL_PATH_INCOME"),
+            utils.INCOME_PATH,
             utils.INCOME_SHEET_NAME)
         utils.fetch_income_deduction_data.clear()
         st.rerun()
