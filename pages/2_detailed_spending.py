@@ -1,14 +1,14 @@
-import streamlit as st
 import pandas as pd
-from streamlit.delta_generator import DeltaGenerator
 import plotly.express as px
+import streamlit as st
+from streamlit.delta_generator import DeltaGenerator
+
 import utils
 
 
 def render_detailed_spending(
-        detailed: DeltaGenerator,
-        filtered_dataframe: pd.DataFrame):
-
+    detailed: DeltaGenerator,
+    filtered_dataframe: pd.DataFrame):
     # Display some filters - date, tag etc.
     tags = filtered_dataframe["Tag"].unique()
     shops = filtered_dataframe["Shop"].dropna().unique()
@@ -47,14 +47,14 @@ def render_detailed_spending(
                 "Tag"
             ), use_container_width=True
         )
-    
+
     # Spending by Shop (Altair Bar Chart)
     with col2:
         col2.subheader("Spending by Shop")
         col2.altair_chart(
             utils.plot_bar_chart(
                 filtered_dataframe,
-                "Shop", "Cost", "Shop"), 
+                "Shop", "Cost", "Shop"),
             use_container_width=True
         )
 
@@ -69,7 +69,7 @@ def render_detailed_spending(
         sunburst_fig = px.sunburst(
             sunburst_data,
             path=["Category", "Sub Category", "Sub Sub Category"],
-            values="Cost", 
+            values="Cost",
             color="Sub Category",
             color_discrete_sequence=px.colors.qualitative.Prism,
         )
@@ -77,27 +77,13 @@ def render_detailed_spending(
 
     # Spending Map (if latitude and longitude are available)
     col2.subheader("Spending Map")
-    map_data = filtered_dataframe[["Latitude", "Longitude", "Cost", "Tag"]].dropna().rename(columns={"Latitude": "LAT", "Longitude": "LON"})
+    map_data = filtered_dataframe[["Latitude", "Longitude", "Cost", "Tag"]].dropna(
+        subset=['Latitude', 'Longitude']).rename(
+        columns={"Latitude": "LAT", "Longitude": "LON"})
     col2.map(map_data, size='Cost')
- 
-    # Spending Details Word Cloud (using Details column)
-    # if "Details" in filtered_dataframe.columns:
-    #     try:
-    #         from wordcloud import WordCloud
-    #         import matplotlib.pyplot as plt
 
-    #         detailed.subheader("Word Cloud of Spending Details")
-    #         text = " ".join(filtered_dataframe["Details"].dropna())
-    #         wordcloud = WordCloud(width=2000, height=1000, background_color="white").generate(text)
-
-    #         fig, ax = plt.subplots(figsize=(20, 10))
-    #         ax.imshow(wordcloud, interpolation="bilinear")
-    #         ax.axis("off")
-    #         detailed.pyplot(fig)
-    #     except ImportError:
-    #         detailed.warning("Install `wordcloud` and `matplotlib` to see the Word Cloud.")
     st.subheader("Line items")
-    detailed.write(filtered_dataframe.astype(str))
+    detailed.dataframe(filtered_dataframe)
 
 
 st.set_page_config(layout="wide")
