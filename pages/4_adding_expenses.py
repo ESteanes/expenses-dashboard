@@ -134,8 +134,6 @@ def delete_expenses(categorised_transactions: pd.DataFrame):
         selection_mode="single-row"
     )
     if prior_expenses_entry.selection.rows:
-        st.write(prior_expenses_entry.selection.rows[0])
-        st.write(sorted_df.iloc[prior_expenses_entry.selection.rows[0]])
         index_label = sorted_df.index[prior_expenses_entry.selection.rows[0]]
         edited_df = (
             sorted_df
@@ -144,7 +142,6 @@ def delete_expenses(categorised_transactions: pd.DataFrame):
             .sort_values(by=["Date"])
             .reset_index()
         )
-        st.dataframe(edited_df)
         if st.button("Delete Transaction"):
             save_reset(edited_df)
 
