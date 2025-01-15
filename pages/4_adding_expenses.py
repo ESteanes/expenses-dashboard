@@ -120,12 +120,7 @@ def add_expenses(categorised_transactions: pd.DataFrame):
             [categorised_transactions, pd.DataFrame([new_row])],
             ignore_index=True
         )[utils.SPENDING_DATA_SCHEMA]
-        utils.save_data(
-            edited_df,
-            utils.SPENDING_PATH,
-            utils.SPENDING_SHEET_NAME)
-        utils.fetch_income_deduction_data.clear()
-        st.rerun()
+        save_reset(edited_df)
 
 
 @st.dialog("Delete expenses")
@@ -151,12 +146,7 @@ def delete_expenses(categorised_transactions: pd.DataFrame):
         )
         st.dataframe(edited_df)
         if st.button("Delete Transaction"):
-            utils.save_data(
-                edited_df,
-                utils.SPENDING_PATH,
-                utils.SPENDING_SHEET_NAME)
-            utils.fetch_income_deduction_data.clear()
-            st.rerun()
+            save_reset(edited_df)
 
 
 def unique_items_and_index(series: pd.Series, value):
@@ -185,12 +175,16 @@ def edit_expenses(categorised_transactions: pd.DataFrame):
         if st.button("Edit transaction"):
             sorted_df.iloc[prior_expenses_entry.selection.rows[0]] = new_row
             edited_df = sorted_df[utils.SPENDING_DATA_SCHEMA].sort_values(by=["Date"]).reset_index()
-            utils.save_data(
-                edited_df,
-                utils.SPENDING_PATH,
-                utils.SPENDING_SHEET_NAME)
-            utils.fetch_income_deduction_data.clear()
-            st.rerun()
+            save_reset(edited_df)
+
+
+def save_reset(edited_df):
+    utils.save_data(
+        edited_df,
+        utils.SPENDING_PATH,
+        utils.SPENDING_SHEET_NAME)
+    utils.fetch_spending_data.clear()
+    st.rerun()
 
 
 def handle_selection_and_prefill(prior_expenses_entry, sorted_df: pd.DataFrame):
