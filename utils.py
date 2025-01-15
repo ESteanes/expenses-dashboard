@@ -88,6 +88,7 @@ def fetch_spending_data():
     )
     df['Details'] = df['Details'].astype(str)
     df['Tag'] = df['Tag'].astype(str)
+    df['Measure'] = df['Measure'].astype(str)
     return df
 
 
@@ -219,7 +220,7 @@ def fetch_transaction_data(
         # Convert CSV response to a pandas DataFrame
         csv_data = response.content.decode("utf-8")
         dataframe = pd.read_csv(StringIO(csv_data))
-        return dataframe
+        return clean_transaction_data(dataframe)
 
     except requests.exceptions.RequestException as e:
         st.error(
@@ -228,6 +229,26 @@ def fetch_transaction_data(
     except Exception as e:
         st.error(f"An unexpected error occurred: {e}")
         return pd.DataFrame()
+
+
+def clean_transaction_data(transaction_data: pd.DataFrame):
+    clean = transaction_data.rename(columns={
+        "Category": "Upbank Category",
+        "empty": "Quantity",
+        "Empty": "Measure",
+        "rawText": "Upbank Text",
+        "description": "Shop",
+        "empty_1": "Details",
+        "empty_2": "Tag",
+        "createdAt": "Date"
+    })
+    clean['Cost'] = clean['Cost'] * -1
+    clean['Item'] = pd.Series(dtype='str')
+    clean['Location'] = pd.Series(dtype='str')
+    clean['Date'] = pd.to_datetime(clean['Date'])
+    clean['Details'] = clean['Details'].dropna().astype(str)
+    clean['Tag'] = clean['Tag'].dropna().astype(str)
+    return clean
 
 
 def save_data(df: pd.DataFrame, file_path: str, sheet_name: str):
