@@ -22,7 +22,7 @@ SPENDING_DATA_SCHEMA = [
     "Receipt",
     "transactionId"
 ]
-SPENDING_PATH = os.getenv("EXCEL_PATH_SPENDING")
+SPENDING_PATH = os.getenv("EXCEL_PATH_SPENDING", default="/app/data/spending.xlsx")
 
 INCOME_SHEET_NAME = "Income"
 INCOME_DATA_SCHEMA = [
@@ -38,7 +38,7 @@ INCOME_DATA_SCHEMA = [
     "Comment"
 ]
 TAXABLE_OPTIONS = ["Not-taxable", "Taxable", "Franked Dividends"]
-INCOME_PATH = os.getenv("EXCEL_PATH_INCOME")
+INCOME_PATH = os.getenv("EXCEL_PATH_INCOME", default="/app/data/income.xlsx")
 
 
 def dataframe_in_list(df, key, list_items):
