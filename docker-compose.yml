@@ -1,0 +1,9 @@
+services:
+  app:
+    image: expenses-dashboard:latest
+    container_name: expenses-dashboard
+    ports:
+      - "8501:8501"
+    volumes:
+      - ${EXCEL_PATH_SPENDING}:/app/data/spending.xlsx
+      - ${EXCEL_PATH_INCOME}:/app/data/income.xlsx
