@@ -39,6 +39,7 @@ INCOME_DATA_SCHEMA = [
 ]
 TAXABLE_OPTIONS = ["Not-taxable", "Taxable", "Franked Dividends"]
 INCOME_PATH = os.getenv("EXCEL_PATH_INCOME", default="/app/data/income.xlsx")
+EXPENSE_MANAGER_URL = os.getenv("EXPENSE_MANAGER_URL", default="localhost:8080")
 
 
 def dataframe_in_list(df, key, list_items):
@@ -202,7 +203,6 @@ def fetch_transaction_data(
     start_date=pd.Timestamp.today() - pd.DateOffset(months=1),
     end_date=pd.Timestamp.today()
 ):
-    transactions_uri = "http://localhost:8080"
     csv_endpoint = "/api/v1/transactions/csv"
     params = {
         "startDate": f"{start_date}T00:00:00.000Z",
@@ -214,7 +214,7 @@ def fetch_transaction_data(
     }
     try:
         # Fetch the CSV data
-        response = requests.get(transactions_uri + csv_endpoint, params=params)
+        response = requests.get(EXPENSE_MANAGER_URL + csv_endpoint, params=params)
         response.raise_for_status()  # Raise an exception for HTTP errors
 
         # Convert CSV response to a pandas DataFrame
@@ -224,7 +224,7 @@ def fetch_transaction_data(
 
     except requests.exceptions.RequestException as e:
         st.error(
-            f"Please check that the service is running successfully at {transactions_uri}.\n\n An error occurred while fetching the data: {e}")
+            f"Please check that the service is running successfully at {EXPENSE_MANAGER_URL}.\n\n An error occurred while fetching the data: {e}")
         return pd.DataFrame()
     except Exception as e:
         st.error(f"An unexpected error occurred: {e}")
