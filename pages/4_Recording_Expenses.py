@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 import streamlit as st
+from PIL import Image
+from pdf2image import convert_from_bytes
 from streamlit.delta_generator import DeltaGenerator
 
 import utils
@@ -110,17 +112,64 @@ def add_expenses(categorised_transactions: pd.DataFrame):
             on_select="rerun",
             selection_mode="single-row"
         )
+    upload_display_image()
     # Form fields
     if prior_expenses_entry.selection.rows:
         new_row = handle_selection_and_prefill(prior_expenses_entry, sorted_df)
     else:
         new_row = handle_selection_and_prefill(None, sorted_df)
+
     if st.button("Submit"):
+        if st.session_state.uploaded_file:
+            new_row['Receipt Ref'] = utils.save_file(st.session_state.uploaded_file, new_row['Date'],
+                                                     new_row['Receipt Ref'],
+                                                     st.session_state.rotation_angle)
+        # save the data
         edited_df = pd.concat(
             [categorised_transactions, pd.DataFrame([new_row])],
             ignore_index=True
         )[utils.SPENDING_DATA_SCHEMA]
         save_reset(edited_df)
+
+
+def upload_display_image():
+    uploaded_file = st.file_uploader(
+        "Upload receipt images",
+        type=["jpg", "jpeg", "png", "pdf"],
+        accept_multiple_files=False
+    )
+    if "uploaded_file" not in st.session_state:
+        st.session_state.uploaded_file = None
+    if "rotation_angle" not in st.session_state:
+        st.session_state.rotation_angle = 0
+
+    if st.button("Clear image"):
+        st.session_state.uploaded_file = None
+
+    if uploaded_file and not st.session_state.uploaded_file:
+        st.session_state.uploaded_file = uploaded_file
+
+    if st.session_state.uploaded_file and st.session_state.uploaded_file.type == "application/pdf":
+        images = convert_from_bytes(st.session_state.uploaded_file.read())
+        st.session_state.uploaded_file.seek(0)  # Reset pointer before reading
+        for page_num, img in enumerate(images):
+            st.image(img, caption=f"Uploaded Page {page_num + 1}", use_container_width=True)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Rotate Left (⟲ 90°)"):
+            st.session_state.rotation_angle += 90
+
+    with col2:
+        if st.button("Rotate Right (⟳ 90°)"):
+            st.session_state.rotation_angle -= 90
+
+    if st.session_state.uploaded_file and st.session_state.uploaded_file.type != "application/pdf":
+        # st.write(st.session_state.uploaded_file)
+        st.image(utils.rotate_image(Image.open(st.session_state.uploaded_file), st.session_state.rotation_angle),
+                 caption=f"Uploaded receipt",
+                 use_container_width=True)
+    return st.session_state.uploaded_file
 
 
 @st.dialog("Delete expenses")
@@ -169,7 +218,17 @@ def edit_expenses(categorised_transactions: pd.DataFrame):
     if prior_expenses_entry.selection.rows:
         # Get the data for the selected row
         new_row = handle_selection_and_prefill(prior_expenses_entry, sorted_df)
+        image = None
+        if not str(new_row['Receipt Ref']) == "nan":
+            image = utils.read_image(new_row['Receipt Ref'])
+            st.image(image, caption=new_row['Receipt Ref'], use_container_width=True)
+        else:
+            image = upload_display_image()
+
         if st.button("Edit transaction"):
+            if image:
+                new_row['Receipt Ref'] = utils.save_file(image, new_row['Date'], new_row['Receipt Ref'],
+                                                         st.session_state.rotation_angle)
             sorted_df.iloc[prior_expenses_entry.selection.rows[0]] = new_row
             edited_df = sorted_df[utils.SPENDING_DATA_SCHEMA].sort_values(by=["Date"]).reset_index()
             save_reset(edited_df)
@@ -181,6 +240,7 @@ def save_reset(edited_df):
         utils.SPENDING_PATH,
         utils.SPENDING_SHEET_NAME)
     utils.fetch_spending_data.clear()
+    st.session_state.uploaded_file = None
     st.rerun()
 
 
@@ -231,7 +291,7 @@ def handle_selection_and_prefill(prior_expenses_entry, sorted_df: pd.DataFrame):
         st.session_state.additional_items), index=shop_index)
     details = st.text_area("Details", value=details_value)
     tag_unique, tag_index = unique_items_and_index(sorted_df.Tag, tag_value)
-    tag = st.selectbox("Location", options=np.append(
+    tag = st.selectbox("Tag", options=np.append(
         tag_unique,
         st.session_state.additional_items), index=tag_index)
     date = st.date_input("Date", value=date_value, max_value=pd.Timestamp.today() + pd.DateOffset(months=2))
@@ -250,6 +310,8 @@ def handle_selection_and_prefill(prior_expenses_entry, sorted_df: pd.DataFrame):
         "Receipt": "",
         "transactionId": transaction_id_value
     }
+    if receipt_ref_value:
+        new_row['Receipt Ref'] = receipt_ref_value
     return new_row
 
 
@@ -286,7 +348,8 @@ def initialise_sidebar(inputs: DeltaGenerator, categorised_transactions: pd.Data
 def render_transaction_input(inputs: DeltaGenerator):
     categorised_transactions = utils.fetch_spending_data()
     start_date, end_date = initialise_sidebar(inputs, categorised_transactions)
-    transactions_data = utils.fetch_transaction_data(start_date, end_date)
+    # We need to offset the end date to be inclusive as the time is set to midnight
+    transactions_data = utils.fetch_transaction_data(start_date, end_date + pd.DateOffset(days=1))
     if transactions_data.empty:
         st.write("No transaction data fetched")
         return
