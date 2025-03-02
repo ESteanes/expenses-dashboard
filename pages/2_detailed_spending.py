@@ -83,7 +83,22 @@ def render_detailed_spending(
     col2.map(map_data, size='Cost')
 
     st.subheader("Line items")
-    detailed.dataframe(filtered_dataframe)
+
+    transaction = detailed.dataframe(filtered_dataframe,
+                                     #                    column_config={
+                                     #     "Receipt Base64": st.column_config.ImageColumn(
+                                     #         "Preview Image", help="Streamlit app preview screenshots"
+                                     #     )
+                                     # }
+                                     selection_mode="single-row",
+                                     on_select="rerun"
+                                     )
+
+    if transaction['selection']['rows']:
+        transaction_data = filtered_dataframe.iloc[transaction['selection']['rows'][0]]
+        if not type(transaction_data[
+                        'Receipt Ref']).__name__ == "float":  # this means its null as the receipt reference should be a string
+            st.image(utils.image_to_base64(utils.read_image(transaction_data['Receipt Ref'])))
 
 
 st.set_page_config(layout="wide")
