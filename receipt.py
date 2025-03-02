@@ -1,0 +1,74 @@
+import base64
+import os
+import uuid
+from pathlib import Path
+from typing import Optional
+
+import pandas as pd
+from PIL import Image
+
+
+class Receipt:
+    """A class to handle receipt image operations."""
+
+    BASE_PATH = os.getenv("RECEIPT_PATH", "./receipts")
+
+    def __init__(self, receipt_ref: Optional[str] = None) -> None:
+        """Initialize the receipt with an optional reference."""
+        self.receipt_ref: Optional[str] = receipt_ref
+        self.image: Optional[Image.Image] = None
+
+    def read_image(self) -> Image.Image:
+        """Reads the image from the file system."""
+        if not self.receipt_ref:
+            raise ValueError("No receipt reference provided.")
+        image_path = os.path.join(self.BASE_PATH, self.receipt_ref)
+        if not os.path.exists(image_path):
+            raise FileNotFoundError(f"Image not found: {image_path}")
+        self.image = Image.open(image_path)
+        return self.image
+
+    def rotate_image(self, angle: int) -> Image.Image:
+        """Rotates the image by the given angle."""
+        if self.image is None:
+            raise ValueError("No image loaded. Read or provide an image first.")
+        self.image = self.image.rotate(angle, expand=True)
+        return self.image
+
+    def save_image(self, image: Image.Image, image_date: pd.Timestamp) -> str:
+        """Saves the image in the file system under a date-based structure.
+
+        Args:
+            image (Image.Image): The image to save.
+            image_date (pd.Timestamp): The date associated with the receipt.
+
+        Returns:
+            str: The relative path where the image is saved.
+        """
+        if image is None:
+            raise ValueError("No image provided to save.")
+
+        # Create directory structure
+        year_month: str = image_date.strftime("%Y-%m")
+        save_path: Path = Path(self.BASE_PATH) / year_month
+        save_path.mkdir(parents=True, exist_ok=True)
+
+        # Generate a unique filename
+        filename: str = f"{image_date.strftime('%Y-%m-%d')}_{uuid.uuid4()}.png"
+        image_path: Path = save_path / filename
+
+        # Save the image
+        image.save(image_path)
+        self.receipt_ref = str(Path(year_month) / filename)
+        return self.receipt_ref
+
+    def get_base64_image(self) -> Optional[str]:
+        """Returns the image as a base64-encoded string."""
+        if not self.receipt_ref:
+            return None
+        image_path = os.path.join(self.BASE_PATH, self.receipt_ref)
+        if not os.path.exists(image_path):
+            return None
+        with open(image_path, "rb") as img_file:
+            encoded_string = base64.b64encode(img_file.read()).decode("utf-8")
+        return f"data:image/png;base64,{encoded_string}"
