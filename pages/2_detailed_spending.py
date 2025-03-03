@@ -4,6 +4,7 @@ import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 
 import utils
+from receipt import Receipt
 
 
 def render_detailed_spending(
@@ -98,7 +99,9 @@ def render_detailed_spending(
         transaction_data = filtered_dataframe.iloc[transaction['selection']['rows'][0]]
         if not type(transaction_data[
                         'Receipt Ref']).__name__ == "float":  # this means its null as the receipt reference should be a string
-            st.image(utils.image_to_base64(utils.read_image(transaction_data['Receipt Ref'])))
+            st.image(
+                Receipt().set_path(transaction_data['Receipt Ref']).get_base64_image()
+            )
 
 
 st.set_page_config(layout="wide")
