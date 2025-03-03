@@ -102,4 +102,4 @@ def render_detailed_spending(
 
 
 st.set_page_config(layout="wide")
-render_detailed_spending(st, utils.fetch_spending_data())
+render_detailed_spending(st, utils.fetch_spending_data().combine().combined)

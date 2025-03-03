@@ -346,7 +346,7 @@ def initialise_sidebar(inputs: DeltaGenerator, categorised_transactions: pd.Data
 
 
 def render_transaction_input(inputs: DeltaGenerator):
-    categorised_transactions = utils.fetch_spending_data()
+    categorised_transactions = utils.fetch_spending_data().combine().combined
     start_date, end_date = initialise_sidebar(inputs, categorised_transactions)
     # We need to offset the end date to be inclusive as the time is set to midnight
     transactions_data = utils.fetch_transaction_data(start_date, end_date + pd.DateOffset(days=1))

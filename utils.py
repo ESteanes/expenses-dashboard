@@ -68,34 +68,53 @@ def calculate_financial_year(date):
         return f"FY {year - 1}/{year}"
 
 
+class SpendingData:
+    def __init__(self, spending: pd.DataFrame, location: pd.DataFrame,
+                 base_table: pd.DataFrame, middle_table: pd.DataFrame,
+                 top_table: pd.DataFrame, ):
+        """Initialize with preloaded tables."""
+        self.spending = spending
+        self.location = location
+        self.base_table = base_table
+        self.middle_table = middle_table
+        self.top_table = top_table
+        self.combined = pd.DataFrame()
+
+    def combine(self):
+        """Return the enriched spending data with all hierarchy tables merged."""
+        hierarchy = (
+            self.base_table
+            .rename(columns={'All Items': 'Item'})
+            .merge(self.middle_table, on="Sub Sub Category")
+            .merge(self.top_table, on="Sub Category")
+        )
+        df = (
+            self.spending
+            .merge(hierarchy, on='Item', how='left')
+            .merge(self.location, on='Location', how='left')
+        )
+        # Ensure specific columns are strings
+        df['Details'] = df['Details'].astype(str)
+        df['Tag'] = df['Tag'].astype(str)
+        df['Measure'] = df['Measure'].astype(str)
+        self.combined = df
+        return self
+
+
 @st.cache_data
-def fetch_spending_data():
+def fetch_spending_data() -> SpendingData:
     # Data ingest and basic prep hello
     spending_data = pd.read_excel(
         SPENDING_PATH,
         sheet_name=[SPENDING_SHEET_NAME, "Top_Table", "Middle Table", "Base Table", "Location"])
 
-    df = remove_unnamed_columns(spending_data['Spending'])
-    top_table = remove_unnamed_columns(spending_data['Top_Table'])
-    middle_table = remove_unnamed_columns(spending_data['Middle Table'])
-    base_table = remove_unnamed_columns(spending_data['Base Table'])
-    location = remove_unnamed_columns(spending_data['Location'])
-
-    hierarchy = (
-        base_table
-        .rename(columns={'All Items': 'Item'})
-        .merge(middle_table, on="Sub Sub Category")
-        .merge(top_table, on="Sub Category")
+    return SpendingData(
+        spending=(remove_unnamed_columns(spending_data['Spending'])),
+        top_table=(remove_unnamed_columns(spending_data['Top_Table'])),
+        middle_table=(remove_unnamed_columns(spending_data['Middle Table'])),
+        base_table=(remove_unnamed_columns(spending_data['Base Table'])),
+        location=(remove_unnamed_columns(spending_data['Location']))
     )
-    df = (
-        df
-        .merge(hierarchy, on='Item', how='left')
-        .merge(location, on='Location', how='left')
-    )
-    df['Details'] = df['Details'].astype(str)
-    df['Tag'] = df['Tag'].astype(str)
-    df['Measure'] = df['Measure'].astype(str)
-    return df
 
 
 def add_base64_column(df: pd.DataFrame) -> pd.DataFrame:

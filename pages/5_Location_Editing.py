@@ -2,22 +2,17 @@ import pandas as pd
 import streamlit as st
 from geopy.geocoders import Nominatim
 
-from utils import remove_unnamed_columns, save_data, SPENDING_PATH, SPENDING_SHEET_NAME
+import utils
+from utils import save_data, SPENDING_PATH
 
 # Initialize geolocator
 geolocator = Nominatim(user_agent="streamlit-location-finder")
 
 # Load data
-spending_data = pd.read_excel(
-    SPENDING_PATH,
-    sheet_name=[SPENDING_SHEET_NAME, "Top_Table", "Middle Table", "Base Table", "Location"]
-)
-location_df = remove_unnamed_columns(spending_data['Location'])
-spending_df = remove_unnamed_columns(spending_data[SPENDING_SHEET_NAME])
-
+spending_data = utils.fetch_spending_data()
 # Find unique locations from spending data that are missing in location_df
-existing_locations = set(location_df['Location'])
-spending_locations = set(spending_df['Location'].dropna())
+existing_locations = set(spending_data.location['Location'])
+spending_locations = set(spending_data.spending['Location'].dropna())
 missing_locations = spending_locations - existing_locations
 
 st.title("Add Missing Locations with Coordinates")
@@ -62,6 +57,7 @@ else:
     # Save all new locations to the location DataFrame
     if new_location_entries:
         new_location_df = pd.DataFrame(new_location_entries)
-        updated_location_df = pd.concat([location_df, new_location_df], ignore_index=True)
+        updated_location_df = pd.concat([spending_data.location, new_location_df], ignore_index=True)
         save_data(updated_location_df, SPENDING_PATH, "Location")
+        utils.fetch_spending_data.clear()
         st.rerun()

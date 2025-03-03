@@ -1,8 +1,10 @@
-import streamlit as st
 import altair as alt
 import pandas as pd
+import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
+
 import utils
+
 
 def render_recent_spending(
     recent: DeltaGenerator,
@@ -14,13 +16,16 @@ def render_recent_spending(
     It is intended to be very minimal and at a glance.
     ''')
     recent.sidebar.button("Refresh Data", on_click=utils.fetch_spending_data.clear)
-    
-    recent.metric("Total Cost", f"${round(filtered_dataframe.Cost.sum(),2)}")
+
+    recent.metric("Total Cost", f"${round(filtered_dataframe.Cost.sum(), 2)}")
     metrics = recent.container()
     metric_col1, metric_col2, metric_col3 = metrics.columns(3)
-    metric_col1.metric("Discretionary", f"${round(filtered_dataframe.loc[lambda df: df.Category == 'Wants'].Cost.sum(),2)}")
-    metric_col2.metric("Miscellaneous", f"${round(filtered_dataframe.loc[lambda df: df['Sub Category'] == 'Miscellaneous'].Cost.sum(),2)}")
-    metric_col3.metric("Necessary", f"${round(filtered_dataframe.loc[lambda df: df.Category == 'Week by Week'].Cost.sum(),2)}")
+    metric_col1.metric("Discretionary",
+                       f"${round(filtered_dataframe.loc[lambda df: df.Category == 'Wants'].Cost.sum(), 2)}")
+    metric_col2.metric("Miscellaneous",
+                       f"${round(filtered_dataframe.loc[lambda df: df['Sub Category'] == 'Miscellaneous'].Cost.sum(), 2)}")
+    metric_col3.metric("Necessary",
+                       f"${round(filtered_dataframe.loc[lambda df: df.Category == 'Week by Week'].Cost.sum(), 2)}")
     recent.bar_chart(
         filtered_dataframe,
         x="Date",
@@ -32,7 +37,8 @@ def render_recent_spending(
 
     # Cost by Tag
     recent.subheader("Cost by Tag")
-    cost_by_tag = filtered_dataframe.groupby("Tag")["Cost"].sum().reset_index().sort_values(by="Cost", ascending=False).head(20)
+    cost_by_tag = filtered_dataframe.groupby("Tag")["Cost"].sum().reset_index().sort_values(by="Cost",
+                                                                                            ascending=False).head(20)
     recent.altair_chart(alt.Chart(cost_by_tag).mark_bar().encode(
         x=alt.X('Tag', sort=None, title="Tag"),
         y=alt.Y('Cost', title="Total Cost"),
@@ -41,7 +47,8 @@ def render_recent_spending(
 
     # Cost by Shop
     recent.subheader("Cost by Shop")
-    cost_by_shop = filtered_dataframe.groupby("Shop")["Cost"].sum().reset_index().sort_values(by="Cost", ascending=False).head(20)
+    cost_by_shop = filtered_dataframe.groupby("Shop")["Cost"].sum().reset_index().sort_values(by="Cost",
+                                                                                              ascending=False).head(20)
     recent.altair_chart(alt.Chart(cost_by_shop).mark_bar().encode(
         x=alt.X('Shop', sort=None, title="Shop"),
         y=alt.Y('Cost', title="Total Cost")
@@ -49,10 +56,14 @@ def render_recent_spending(
 
     # Cost by Location
     recent.subheader("Cost by Location")
-    cost_by_location = filtered_dataframe.groupby("Location")["Cost"].sum().reset_index().sort_values(by="Cost", ascending=False).head(20)
+    cost_by_location = filtered_dataframe.groupby("Location")["Cost"].sum().reset_index().sort_values(by="Cost",
+                                                                                                      ascending=False).head(
+        20)
     recent.altair_chart(alt.Chart(cost_by_location).mark_bar().encode(
         x=alt.X('Location', sort=None, title="Location"),
         y=alt.Y('Cost', title="Total Cost")
     ), use_container_width=True)
 
-render_recent_spending(st, utils.fetch_spending_data().loc[lambda df: df.Date > pd.Timestamp.now() - pd.DateOffset(months=1)])
+
+render_recent_spending(st, utils.fetch_spending_data().combine().combined.loc[
+    lambda df: df.Date > pd.Timestamp.now() - pd.DateOffset(months=1)])
