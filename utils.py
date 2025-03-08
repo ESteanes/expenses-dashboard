@@ -1,14 +1,10 @@
-import base64
-import math
 import os
-import uuid
-from io import StringIO, BytesIO
+from io import StringIO
 
 import altair as alt
 import pandas as pd
 import requests
 import streamlit as st
-from PIL import Image
 from streamlit.delta_generator import DeltaGenerator
 
 SPENDING_SHEET_NAME = "Spending"
@@ -45,12 +41,6 @@ TAXABLE_OPTIONS = ["Not-taxable", "Taxable", "Franked Dividends"]
 INCOME_PATH = os.getenv("EXCEL_PATH_INCOME", default="/app/data/income.xlsx")
 EXPENSE_MANAGER_URL = os.getenv("EXPENSE_MANAGER_URL", default="http://localhost:8080")
 RECEIPT_PATH = os.getenv("RECEIPT_PATH", default="/app/data/receipts")
-
-
-def dataframe_in_list(df, key, list_items):
-    if not list_items:
-        return df[key].isin(list_items)
-    return df
 
 
 def remove_unnamed_columns(df):
@@ -115,14 +105,6 @@ def fetch_spending_data() -> SpendingData:
         base_table=(remove_unnamed_columns(spending_data['Base Table'])),
         location=(remove_unnamed_columns(spending_data['Location']))
     )
-
-
-def add_base64_column(df: pd.DataFrame) -> pd.DataFrame:
-    """Adds a column with base64-encoded images if 'Receipt Ref' exists."""
-    df["Receipt Base64"] = df["Receipt Ref"].apply(
-        lambda ref: image_to_base64(read_image(ref)) if pd.notna(ref) and ref else None
-    )
-    return df
 
 
 @st.cache_data
@@ -297,93 +279,3 @@ def save_data(df: pd.DataFrame, file_path: str, sheet_name: str):
             writer,
             sheet_name=sheet_name,
         )
-
-
-# Function to automatically rotate the image based on orientation
-def rotate_image(image: Image.Image, manual_rotation_deg: int) -> Image.Image:
-    if manual_rotation_deg != 0:
-        return image.rotate(manual_rotation_deg, expand=True)
-    return image
-
-
-def save_image(image: Image, date: pd.Timestamp):
-    sub_dir = date.strftime("%Y/%m")  # Organizes by Year/Month
-    save_path = os.path.join(RECEIPT_PATH, sub_dir)
-
-    os.makedirs(save_path, exist_ok=True)  # Ensure directory exists
-    receipt_ref = f"{date.strftime('%Y-%m-%d')}_{uuid.uuid4()}.jpeg"
-
-    file_path = os.path.join(save_path, receipt_ref)
-    image.save(file_path)  # Assumes 'image' is a PIL Image or a file-like object with `.save()`
-
-    return receipt_ref  # Return the saved file path for reference
-
-
-def read_display_image(receipt_ref: str):
-    image = read_image(receipt_ref)
-
-
-def read_image(receipt_ref: str) -> Image:
-    try:
-        date_part = receipt_ref.split("_")[0]  # Extract the date part
-        date = pd.Timestamp(date_part)  # Convert to Timestamp
-        sub_dir = date.strftime("%Y/%m")  # Match save structure
-    except Exception:
-        raise ValueError(f"Invalid filename format: {receipt_ref}")
-    file_path = os.path.join(RECEIPT_PATH, sub_dir, receipt_ref)
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Image not found: {file_path}")
-    return Image.open(file_path)
-
-
-def save_file(uploaded_file, date: pd.Timestamp, existing_file, manual_rotation_deg: int):
-    """Save an uploaded file (image or PDF) in a structured directory format."""
-    # Ensure the base directory exists
-    os.makedirs(RECEIPT_PATH, exist_ok=True)
-
-    # Extract year and month from the date
-    save_dir = os.path.join(RECEIPT_PATH, date.strftime("%Y/%m"))
-    os.makedirs(save_dir, exist_ok=True)
-
-    # Get file extension and generate a unique filename
-    file_extension = uploaded_file.name.split(".")[-1].lower()
-    filename = f"{date.strftime('%Y-%m-%d')}_{uuid.uuid4()}.{file_extension}"
-    if existing_file and not math.isnan(existing_file):
-        filename = existing_file
-    file_path = os.path.join(save_dir, filename)
-
-    # Handle PDFs
-    if file_extension == "pdf":
-        with open(file_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
-
-    # Handle Images (JPG, JPEG, PNG)
-    elif file_extension in ["jpg", "jpeg", "png"]:
-        image = Image.open(uploaded_file)
-        image = rotate_image(image, manual_rotation_deg)  # Ensure correct orientation
-        image.save(file_path)
-
-    else:
-        raise ValueError("Unsupported file format")
-
-    return filename  # Return the saved file path
-
-
-def delete_file(receipt_reference: str):
-    if not receipt_reference:
-        return
-    receipt_date = receipt_reference.split("_")[0]
-    year = receipt_date.split("-")[0]
-    month = receipt_date.split("-")[1]
-    receipt_path = os.path.join(RECEIPT_PATH, year, month)
-    receipt_file = os.path.join(receipt_path, receipt_reference)
-    if os.path.exists(receipt_file):
-        os.remove(receipt_file)
-        return
-
-
-def image_to_base64(image: Image) -> str:
-    """Converts a PIL Image to a base64-encoded string."""
-    buffered = BytesIO()
-    image.save(buffered, format="PNG")
-    return f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
