@@ -1,14 +1,12 @@
-import base64
-import math
 import os
-import uuid
-from io import StringIO, BytesIO
+from dataclasses import dataclass
+from io import StringIO
+from typing import List
 
 import altair as alt
 import pandas as pd
 import requests
 import streamlit as st
-from PIL import Image
 from streamlit.delta_generator import DeltaGenerator
 
 SPENDING_SHEET_NAME = "Spending"
@@ -41,16 +39,142 @@ INCOME_DATA_SCHEMA = [
     "Received in bank account",
     "Comment"
 ]
+YES_NO_OPTIONS = ["Yes", "No"]
+
+
+@dataclass
+class IncomeEntry:
+    """Represents an income entry."""
+    gross_income: float
+    salary_sacrifice: float
+    tax: float
+    income: float
+    date: pd.Timestamp
+    employer: str
+    description: str
+    taxable: str
+    received_in_bank_account: str
+    comment: str
+
+    @classmethod
+    def from_Series(self, row: pd.Series):
+        """Creates an IncomeEntry from a DataFrame row (df.iloc[index])."""
+        self.gross_income = row["Gross Income"]
+        self.salary_sacrifice = row["Salary Sacrifice"]
+        self.tax = row["Tax"]
+        self.income = row["Income"]
+        self.date = pd.to_datetime(row["Date"])
+        self.employer = row["Employer"]
+        self.description = row["Description"]
+        self.taxable = row["Taxable"]
+        self.received_in_bank_account = row["Received in bank account"]
+        self.comment = row["Comment"]
+        return self
+
+    def to_dataframe(self) -> pd.DataFrame:
+        return pd.DataFrame([{
+            "Gross Income": self.gross_income,
+            "Salary Sacrifice": self.salary_sacrifice,
+            "Tax": self.tax,
+            "Income": self.income,
+            "Date": self.date,
+            "Employer": self.employer,
+            "Description": self.description,
+            "Taxable": self.taxable,
+            "Received in bank account": self.received_in_bank_account,
+            "Comment": self.comment,
+        }])
+
+    @classmethod
+    def builder(self):
+        return IncomeEntryBuilder()
+
+
+class IncomeEntryBuilder:
+    def __init__(self):
+        self._data = {}
+
+    def gross_income(self, value: float):
+        self._data["gross_income"] = value
+        return self
+
+    def salary_sacrifice(self, value: float):
+        self._data["salary_sacrifice"] = value
+        return self
+
+    def tax(self, value: float):
+        self._data["tax"] = value
+        return self
+
+    def income(self, value: float):
+        self._data["income"] = value
+        return self
+
+    def date(self, value: pd.Timestamp):
+        self._data["date"] = value
+        return self
+
+    def employer(self, value: str):
+        self._data["employer"] = value
+        return self
+
+    def description(self, value: str):
+        self._data["description"] = value
+        return self
+
+    def taxable(self, value: int):
+        self._data["taxable"] = value
+        return self
+
+    def received_in_bank_account(self, value: bool):
+        self._data["received_in_bank_account"] = value
+        return self
+
+    def comment(self, value: str):
+        self._data["comment"] = value
+        return self
+
+    def build(self) -> IncomeEntry:
+        return IncomeEntry(**self._data)
+
+
+@dataclass
+class SpendingEntry:
+    """Represents a spending entry."""
+    item: str
+    cost: float
+    quantity: float
+    measure: str
+    location: str
+    shop: str
+    details: str
+    tag: str
+    date: pd.Timestamp
+    receipt_ref: str
+    receipt: str
+    transaction_id: str
+
+    @classmethod
+    def from_dataframe(self, row: pd.Series):
+        """Creates a SpendingEntry from a DataFrame row (df.iloc[index])."""
+        self.item = row["Item"]
+        self.cost = row["Cost"]
+        self.quantity = row["Quantity"]
+        self.measure = row["Measure"]
+        self.location = row["Location"]
+        self.shop = row["Shop"]
+        self.details = row["Details"]
+        self.tag = row["Tag"]
+        self.date = pd.to_datetime(row["Date"])
+        self.receipt_ref = row["Receipt Ref"]
+        self.receipt = row["Receipt"]
+        self.transaction_id = row["transactionId"]
+
+
 TAXABLE_OPTIONS = ["Not-taxable", "Taxable", "Franked Dividends"]
 INCOME_PATH = os.getenv("EXCEL_PATH_INCOME", default="/app/data/income.xlsx")
 EXPENSE_MANAGER_URL = os.getenv("EXPENSE_MANAGER_URL", default="http://localhost:8080")
 RECEIPT_PATH = os.getenv("RECEIPT_PATH", default="/app/data/receipts")
-
-
-def dataframe_in_list(df, key, list_items):
-    if not list_items:
-        return df[key].isin(list_items)
-    return df
 
 
 def remove_unnamed_columns(df):
@@ -68,42 +192,53 @@ def calculate_financial_year(date):
         return f"FY {year - 1}/{year}"
 
 
+class SpendingData:
+    def __init__(self, spending: pd.DataFrame, location: pd.DataFrame,
+                 base_table: pd.DataFrame, middle_table: pd.DataFrame,
+                 top_table: pd.DataFrame, ):
+        """Initialize with preloaded tables."""
+        self.spending = spending
+        self.location = location
+        self.base_table = base_table
+        self.middle_table = middle_table
+        self.top_table = top_table
+        self.combined = pd.DataFrame()
+
+    def combine(self):
+        """Return the enriched spending data with all hierarchy tables merged."""
+        hierarchy = (
+            self.base_table
+            .rename(columns={'All Items': 'Item'})
+            .merge(self.middle_table, on="Sub Sub Category")
+            .merge(self.top_table, on="Sub Category")
+        )
+        df = (
+            self.spending
+            .merge(hierarchy, on='Item', how='left')
+            .merge(self.location, on='Location', how='left')
+        )
+        # Ensure specific columns are strings
+        df['Details'] = df['Details'].astype(str)
+        df['Tag'] = df['Tag'].astype(str)
+        df['Measure'] = df['Measure'].astype(str)
+        self.combined = df
+        return self
+
+
 @st.cache_data
-def fetch_spending_data():
+def fetch_spending_data() -> SpendingData:
     # Data ingest and basic prep hello
     spending_data = pd.read_excel(
         SPENDING_PATH,
         sheet_name=[SPENDING_SHEET_NAME, "Top_Table", "Middle Table", "Base Table", "Location"])
 
-    df = remove_unnamed_columns(spending_data['Spending'])
-    top_table = remove_unnamed_columns(spending_data['Top_Table'])
-    middle_table = remove_unnamed_columns(spending_data['Middle Table'])
-    base_table = remove_unnamed_columns(spending_data['Base Table'])
-    location = remove_unnamed_columns(spending_data['Location'])
-
-    hierarchy = (
-        base_table
-        .rename(columns={'All Items': 'Item'})
-        .merge(middle_table, on="Sub Sub Category")
-        .merge(top_table, on="Sub Category")
+    return SpendingData(
+        spending=(remove_unnamed_columns(spending_data['Spending'])),
+        top_table=(remove_unnamed_columns(spending_data['Top_Table'])),
+        middle_table=(remove_unnamed_columns(spending_data['Middle Table'])),
+        base_table=(remove_unnamed_columns(spending_data['Base Table'])),
+        location=(remove_unnamed_columns(spending_data['Location']))
     )
-    df = (
-        df
-        .merge(hierarchy, on='Item', how='left')
-        .merge(location, on='Location', how='left')
-    )
-    df['Details'] = df['Details'].astype(str)
-    df['Tag'] = df['Tag'].astype(str)
-    df['Measure'] = df['Measure'].astype(str)
-    return df
-
-
-def add_base64_column(df: pd.DataFrame) -> pd.DataFrame:
-    """Adds a column with base64-encoded images if 'Receipt Ref' exists."""
-    df["Receipt Base64"] = df["Receipt Ref"].apply(
-        lambda ref: image_to_base64(read_image(ref)) if pd.notna(ref) and ref else None
-    )
-    return df
 
 
 @st.cache_data
@@ -280,91 +415,8 @@ def save_data(df: pd.DataFrame, file_path: str, sheet_name: str):
         )
 
 
-# Function to automatically rotate the image based on orientation
-def rotate_image(image: Image.Image, manual_rotation_deg: int) -> Image.Image:
-    if manual_rotation_deg != 0:
-        return image.rotate(manual_rotation_deg, expand=True)
-    return image
-
-
-def save_image(image: Image, date: pd.Timestamp):
-    sub_dir = date.strftime("%Y/%m")  # Organizes by Year/Month
-    save_path = os.path.join(RECEIPT_PATH, sub_dir)
-
-    os.makedirs(save_path, exist_ok=True)  # Ensure directory exists
-    receipt_ref = f"{date.strftime('%Y-%m-%d')}_{uuid.uuid4()}.jpeg"
-
-    file_path = os.path.join(save_path, receipt_ref)
-    image.save(file_path)  # Assumes 'image' is a PIL Image or a file-like object with `.save()`
-
-    return receipt_ref  # Return the saved file path for reference
-
-
-def read_display_image(receipt_ref: str):
-    image = read_image(receipt_ref)
-
-
-def read_image(receipt_ref: str) -> Image:
-    try:
-        date_part = receipt_ref.split("_")[0]  # Extract the date part
-        date = pd.Timestamp(date_part)  # Convert to Timestamp
-        sub_dir = date.strftime("%Y/%m")  # Match save structure
-    except Exception:
-        raise ValueError(f"Invalid filename format: {receipt_ref}")
-    file_path = os.path.join(RECEIPT_PATH, sub_dir, receipt_ref)
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Image not found: {file_path}")
-    return Image.open(file_path)
-
-
-def save_file(uploaded_file, date: pd.Timestamp, existing_file, manual_rotation_deg: int):
-    """Save an uploaded file (image or PDF) in a structured directory format."""
-    # Ensure the base directory exists
-    os.makedirs(RECEIPT_PATH, exist_ok=True)
-
-    # Extract year and month from the date
-    save_dir = os.path.join(RECEIPT_PATH, date.strftime("%Y/%m"))
-    os.makedirs(save_dir, exist_ok=True)
-
-    # Get file extension and generate a unique filename
-    file_extension = uploaded_file.name.split(".")[-1].lower()
-    filename = f"{date.strftime('%Y-%m-%d')}_{uuid.uuid4()}.{file_extension}"
-    if existing_file and not math.isnan(existing_file):
-        filename = existing_file
-    file_path = os.path.join(save_dir, filename)
-
-    # Handle PDFs
-    if file_extension == "pdf":
-        with open(file_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
-
-    # Handle Images (JPG, JPEG, PNG)
-    elif file_extension in ["jpg", "jpeg", "png"]:
-        image = Image.open(uploaded_file)
-        image = rotate_image(image, manual_rotation_deg)  # Ensure correct orientation
-        image.save(file_path)
-
-    else:
-        raise ValueError("Unsupported file format")
-
-    return filename  # Return the saved file path
-
-
-def delete_file(receipt_reference: str):
-    if not receipt_reference:
-        return
-    receipt_date = receipt_reference.split("_")[0]
-    year = receipt_date.split("-")[0]
-    month = receipt_date.split("-")[1]
-    receipt_path = os.path.join(RECEIPT_PATH, year, month)
-    receipt_file = os.path.join(receipt_path, receipt_reference)
-    if os.path.exists(receipt_file):
-        os.remove(receipt_file)
-        return
-
-
-def image_to_base64(image: Image) -> str:
-    """Converts a PIL Image to a base64-encoded string."""
-    buffered = BytesIO()
-    image.save(buffered, format="PNG")
-    return f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
+def find_index_in_list(list: List[str], search_value: str) -> int:
+    for i, val in enumerate(list):
+        if val == search_value:
+            return i
+    return 0
