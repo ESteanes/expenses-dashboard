@@ -1,5 +1,7 @@
 import os
+from dataclasses import dataclass
 from io import StringIO
+from typing import List
 
 import altair as alt
 import pandas as pd
@@ -37,6 +39,138 @@ INCOME_DATA_SCHEMA = [
     "Received in bank account",
     "Comment"
 ]
+YES_NO_OPTIONS = ["Yes", "No"]
+
+
+@dataclass
+class IncomeEntry:
+    """Represents an income entry."""
+    gross_income: float
+    salary_sacrifice: float
+    tax: float
+    income: float
+    date: pd.Timestamp
+    employer: str
+    description: str
+    taxable: str
+    received_in_bank_account: str
+    comment: str
+
+    @classmethod
+    def from_Series(self, row: pd.Series):
+        """Creates an IncomeEntry from a DataFrame row (df.iloc[index])."""
+        self.gross_income = row["Gross Income"]
+        self.salary_sacrifice = row["Salary Sacrifice"]
+        self.tax = row["Tax"]
+        self.income = row["Income"]
+        self.date = pd.to_datetime(row["Date"])
+        self.employer = row["Employer"]
+        self.description = row["Description"]
+        self.taxable = row["Taxable"]
+        self.received_in_bank_account = row["Received in bank account"]
+        self.comment = row["Comment"]
+        return self
+
+    def to_dataframe(self) -> pd.DataFrame:
+        return pd.DataFrame([{
+            "Gross Income": self.gross_income,
+            "Salary Sacrifice": self.salary_sacrifice,
+            "Tax": self.tax,
+            "Income": self.income,
+            "Date": self.date,
+            "Employer": self.employer,
+            "Description": self.description,
+            "Taxable": self.taxable,
+            "Received in bank account": self.received_in_bank_account,
+            "Comment": self.comment,
+        }])
+
+    @classmethod
+    def builder(self):
+        return IncomeEntryBuilder()
+
+
+class IncomeEntryBuilder:
+    def __init__(self):
+        self._data = {}
+
+    def gross_income(self, value: float):
+        self._data["gross_income"] = value
+        return self
+
+    def salary_sacrifice(self, value: float):
+        self._data["salary_sacrifice"] = value
+        return self
+
+    def tax(self, value: float):
+        self._data["tax"] = value
+        return self
+
+    def income(self, value: float):
+        self._data["income"] = value
+        return self
+
+    def date(self, value: pd.Timestamp):
+        self._data["date"] = value
+        return self
+
+    def employer(self, value: str):
+        self._data["employer"] = value
+        return self
+
+    def description(self, value: str):
+        self._data["description"] = value
+        return self
+
+    def taxable(self, value: int):
+        self._data["taxable"] = value
+        return self
+
+    def received_in_bank_account(self, value: bool):
+        self._data["received_in_bank_account"] = value
+        return self
+
+    def comment(self, value: str):
+        self._data["comment"] = value
+        return self
+
+    def build(self) -> IncomeEntry:
+        return IncomeEntry(**self._data)
+
+
+@dataclass
+class SpendingEntry:
+    """Represents a spending entry."""
+    item: str
+    cost: float
+    quantity: float
+    measure: str
+    location: str
+    shop: str
+    details: str
+    tag: str
+    date: pd.Timestamp
+    receipt_ref: str
+    receipt: str
+    transaction_id: str
+
+    @classmethod
+    def from_dataframe(self, row: pd.Series):
+        """Creates a SpendingEntry from a DataFrame row (df.iloc[index])."""
+        self.item = row["Item"]
+        self.cost = row["Cost"]
+        self.quantity = row["Quantity"]
+        self.measure = row["Measure"]
+        self.location = row["Location"]
+        self.shop = row["Shop"]
+        self.details = row["Details"]
+        self.tag = row["Tag"]
+        self.date = pd.to_datetime(row["Date"])
+        self.receipt_ref = row["Receipt Ref"]
+        self.receipt = row["Receipt"]
+        self.transaction_id = row["transactionId"]
+
+
 TAXABLE_OPTIONS = ["Not-taxable", "Taxable", "Franked Dividends"]
 INCOME_PATH = os.getenv("EXCEL_PATH_INCOME", default="/app/data/income.xlsx")
 EXPENSE_MANAGER_URL = os.getenv("EXPENSE_MANAGER_URL", default="http://localhost:8080")
@@ -279,3 +413,10 @@ def save_data(df: pd.DataFrame, file_path: str, sheet_name: str):
             writer,
             sheet_name=sheet_name,
         )
+
+
+def find_index_in_list(list: List[str], search_value: str) -> int:
+    for i, val in enumerate(list):
+        if val == search_value:
+            return i
+    return 0

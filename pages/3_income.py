@@ -5,6 +5,7 @@ import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 
 import utils
+from utils import IncomeEntry, YES_NO_OPTIONS
 
 
 def variable_income_aggregation(
@@ -73,16 +74,17 @@ def add_income(existing_income: pd.DataFrame):
     # Form fields
     if prior_income_entry.selection.rows:
         # Get the data for the selected row
-        selected_row_data = existing_income.iloc[prior_income_entry.selection.rows[0]]
-        taxable_value = selected_row_data["Taxable"]
-        gross_income_value = selected_row_data["Gross Income"]
-        salary_sacrifice_value = selected_row_data["Salary Sacrifice"]
-        tax_value = selected_row_data["Tax"]
-        date_value = pd.to_datetime(selected_row_data["Date"])
-        employer_value = selected_row_data["Employer"]
-        description_value = selected_row_data["Description"]
-        received_in_bank_value = selected_row_data["Received in bank account"]
-        comment_value = selected_row_data["Comment"]
+        selected_row_data = IncomeEntry.from_Series(
+            existing_income.iloc[prior_income_entry.selection.rows[0]])
+        taxable_value = selected_row_data.taxable
+        gross_income_value = selected_row_data.gross_income
+        salary_sacrifice_value = selected_row_data.salary_sacrifice
+        tax_value = selected_row_data.tax
+        date_value = selected_row_data.date
+        employer_value = selected_row_data.employer
+        description_value = selected_row_data.description
+        received_in_bank_value = selected_row_data.received_in_bank_account
+        comment_value = selected_row_data.comment
     else:
         # Default values if no row is selected
         taxable_value = utils.TAXABLE_OPTIONS[0]  # Default to first option
@@ -98,7 +100,8 @@ def add_income(existing_income: pd.DataFrame):
     # Form fields
     taxable = st.selectbox(
         "Taxable",
-        options=utils.TAXABLE_OPTIONS)
+        options=utils.TAXABLE_OPTIONS,
+        index=utils.find_index_in_list(utils.TAXABLE_OPTIONS, taxable_value))
     gross_income = st.number_input("Gross Income", min_value=0.0, format="%.2f", value=gross_income_value)
     salary_sacrifice = st.number_input("Salary Sacrifice", min_value=0.0, format="%.2f", value=salary_sacrifice_value)
     tax = st.number_input("Tax", min_value=0.0, format="%.2f", value=tax_value)
@@ -110,27 +113,27 @@ def add_income(existing_income: pd.DataFrame):
     description = st.text_input("Description", value=description_value)
     received_in_bank = st.radio(
         "Received in Bank Account?",
-        options=["Yes", "No"],
-        index=1
+        options=YES_NO_OPTIONS,
+        index=utils.find_index_in_list(YES_NO_OPTIONS, received_in_bank_value)
     )
     comment = st.text_area("Comment", value=comment_value)
 
     if st.button("Submit"):
-        # Create a dictionary from the modal data
-        new_row = {
-            "Gross Income": gross_income,
-            "Salary Sacrifice": salary_sacrifice,
-            "Tax": tax,
-            "Income": income,
-            "Date": date,
-            "Employer": employer,
-            "Description": description,
-            "Taxable": taxable,
-            "Received in bank account": received_in_bank,
-            "Comment": comment
-        }
+        income_entry = (IncomeEntry.builder()
+                        .gross_income(gross_income)
+                        .salary_sacrifice(salary_sacrifice)
+                        .tax(tax)
+                        .income(income)
+                        .date(date)
+                        .employer(employer)
+                        .description(description)
+                        .taxable(taxable)
+                        .received_in_bank_account(received_in_bank)
+                        .comment(comment)
+                        .build()
+                        )
         edited_df = pd.concat(
-            [existing_income, pd.DataFrame([new_row])],
+            [existing_income, income_entry.to_dataframe()],
             ignore_index=True
         )[utils.INCOME_DATA_SCHEMA]
         utils.save_data(
