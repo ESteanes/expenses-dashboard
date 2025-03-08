@@ -3,20 +3,23 @@ import plotly.express as px
 import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 
+import spending
 import utils
 from receipt import Receipt
+from spending import SpendingData
 
 
 def render_detailed_spending(
     detailed: DeltaGenerator,
-    filtered_dataframe: pd.DataFrame):
+    spending_data: SpendingData):
+    filtered_dataframe = spending_data.combine().combined
     # Display some filters - date, tag etc.
     tags = filtered_dataframe["Tag"].unique()
     shops = filtered_dataframe["Shop"].dropna().unique()
     sub_categories = filtered_dataframe['Sub Category'].unique()
     categories = filtered_dataframe.Category.dropna().unique()
     detailed.sidebar.header("Filters")
-    detailed.sidebar.button("Refresh Data", on_click=utils.fetch_spending_data.clear)
+    detailed.sidebar.button("Refresh Data", on_click=spending_data.fetch_spending_data.clear)
     start_date, end_date = utils.date_sidebar(detailed, filtered_dataframe, "Date")
     selected_tags = detailed.sidebar.multiselect("Tags", options=tags)
     selected_shops = detailed.sidebar.multiselect("Shops", options=shops)
@@ -104,4 +107,4 @@ def render_detailed_spending(
 
 
 st.set_page_config(layout="wide")
-render_detailed_spending(st, utils.fetch_spending_data().combine().combined)
+render_detailed_spending(st, spending.SpendingData().fetch_spending_data())

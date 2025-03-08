@@ -3,8 +3,10 @@ import pandas as pd
 import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 
+import spending
 import utils
 from receipt import Receipt
+from spending import SpendingData
 
 
 def add_item():
@@ -16,7 +18,7 @@ def add_item():
 
 def refresh_all_the_data():
     utils.fetch_transaction_data.clear()
-    utils.fetch_spending_data.clear()
+    spending.SpendingData().fetch_spending_data.clear()
 
 
 def get_info(spending_data: pd.DataFrame):
@@ -96,7 +98,7 @@ def get_info(spending_data: pd.DataFrame):
 
 
 def save_edited_values(edited_df: pd.DataFrame):
-    utils.save_data(edited_df, utils.SPENDING_PATH, utils.SPENDING_SHEET_NAME)
+    utils.save_data(edited_df, spending.SPENDING_PATH, spending.SPENDING_SHEET_NAME)
     refresh_all_the_data()
 
 
@@ -125,7 +127,7 @@ def add_expenses(categorised_transactions: pd.DataFrame):
         edited_df = pd.concat(
             [categorised_transactions, pd.DataFrame([new_row])],
             ignore_index=True
-        )[utils.SPENDING_DATA_SCHEMA]
+        )[spending.SPENDING_DATA_SCHEMA]
         save_reset(edited_df)
 
 
@@ -136,7 +138,7 @@ def upload_display_image():
         accept_multiple_files=False
     )
     receipt = Receipt()
-    if "uploaded_file" not in st.session_state:
+    if "receipt" not in st.session_state:
         st.session_state.receipt = None
 
     if st.button("Clear image"):
@@ -178,7 +180,7 @@ def delete_expenses(categorised_transactions: pd.DataFrame):
         edited_df = (
             sorted_df
             .drop(index=index_label)
-            [utils.SPENDING_DATA_SCHEMA]
+            [spending.SPENDING_DATA_SCHEMA]
             .sort_values(by=["Date"])
             .reset_index()
         )
@@ -227,16 +229,16 @@ def edit_expenses(categorised_transactions: pd.DataFrame):
             if image:
                 new_row['Receipt Ref'] = image.save_image(new_row['Date'], new_row['Receipt Ref'])
             sorted_df.iloc[prior_expenses_entry.selection.rows[0]] = new_row
-            edited_df = sorted_df[utils.SPENDING_DATA_SCHEMA].sort_values(by=["Date"]).reset_index()
+            edited_df = sorted_df[spending.SPENDING_DATA_SCHEMA].sort_values(by=["Date"]).reset_index()
             save_reset(edited_df)
 
 
 def save_reset(edited_df):
     utils.save_data(
         edited_df,
-        utils.SPENDING_PATH,
-        utils.SPENDING_SHEET_NAME)
-    utils.fetch_spending_data.clear()
+        spending.SPENDING_PATH,
+        spending.SPENDING_SHEET_NAME)
+    spending.SpendingData().fetch_spending_data.clear()
     st.session_state.uploaded_file = None
     st.rerun()
 
@@ -342,8 +344,8 @@ def initialise_sidebar(inputs: DeltaGenerator, categorised_transactions: pd.Data
     return start_date, end_date
 
 
-def render_transaction_input(inputs: DeltaGenerator):
-    categorised_transactions = utils.fetch_spending_data().combine().combined
+def render_transaction_input(inputs: DeltaGenerator, spending_data: SpendingData):
+    categorised_transactions = spending_data.combine().combined
     start_date, end_date = initialise_sidebar(inputs, categorised_transactions)
     # We need to offset the end date to be inclusive as the time is set to midnight
     transactions_data = utils.fetch_transaction_data(start_date, end_date + pd.DateOffset(days=1))
@@ -376,10 +378,10 @@ def render_transaction_input(inputs: DeltaGenerator):
                         ~edited_transactions['Location'].isna()]
                 ],
                 ignore_index=True
-            )[utils.SPENDING_DATA_SCHEMA]],
+            )[spending.SPENDING_DATA_SCHEMA]],
         on_click=save_edited_values)
 
 
 # We need to have some sort of way to
 st.set_page_config(layout="wide")
-render_transaction_input(st)
+render_transaction_input(st, spending.SpendingData().fetch_spending_data())
