@@ -1,12 +1,14 @@
 import base64
+import math
 import os
 import uuid
 from io import BytesIO
-from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 import pandas as pd
 from PIL import Image
+from pdf2image import convert_from_bytes
+from streamlit.runtime.uploaded_file_manager import UploadedFile
 
 
 class Receipt:
@@ -16,9 +18,19 @@ class Receipt:
 
     def __init__(self):
         """Initialize the receipt with an optional reference."""
-        self.receipt_ref: Optional[str] = None
+        self.reference: Optional[str] = None
+        self.filename: str = ""
+        self.type: str = ""
+        self.data: bytes = None
         self.image: Optional[Image.Image] = None
         self.path = None
+
+    def set_uploaded_file(self, uploaded_file: UploadedFile):
+        self.filename = uploaded_file.name
+        self.type = uploaded_file.type
+        self.data = uploaded_file
+        if not self.type == "application/pdf":
+            self.image = Image.open(self.data)
 
     def set_path(self, receipt_ref: str):
         try:
@@ -31,13 +43,19 @@ class Receipt:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Image not found: {file_path}")
         self.path = file_path
-        self.receipt_ref = receipt_ref
+        self.reference = receipt_ref
         return self
 
-    def read_image(self) -> Image.Image:
+    def read_image(self) -> List[Image.Image]:
+        # Reads image stored in class if present.
+        if self.image:
+            return [self.image]
         """Reads the image from the file system."""
-        self.image = Image.open(self.path)
-        return self.image
+        if self.type != "application/pdf":
+            self.image = Image.open(self.path)
+            return [self.image]
+
+        return convert_from_bytes(self.data)
 
     def rotate_image(self, angle: int) -> Image.Image:
         """Rotates the image by the given angle."""
@@ -46,38 +64,59 @@ class Receipt:
         self.image = self.image.rotate(angle, expand=True)
         return self.image
 
-    def save_image(self, image: Image.Image, image_date: pd.Timestamp) -> str:
-        """Saves the image in the file system under a date-based structure.
+    def rotate_clockwise(self):
+        self.rotate_image(-90)
 
-        Args:
-            image (Image.Image): The image to save.
-            image_date (pd.Timestamp): The date associated with the receipt.
+    def rotate_anti_clockwise(self):
+        self.rotate_image(90)
 
-        Returns:
-            str: The relative path where the image is saved.
-        """
-        if image is None:
+    def save_image(self, image_date: pd.Timestamp, existing_file_name: Optional[str | float]) -> str:
+        if self.data is None:
             raise ValueError("No image provided to save.")
 
         # Create directory structure
-        year_month: str = image_date.strftime("%Y-%m")
-        save_path: Path = Path(self.BASE_PATH) / year_month
-        save_path.mkdir(parents=True, exist_ok=True)
+        year_month: str = image_date.strftime("%Y/%m")
+        save_dir: str = os.path.join(self.BASE_PATH, year_month)
+        os.makedirs(save_dir, exist_ok=True)
 
         # Generate a unique filename
-        filename: str = f"{image_date.strftime('%Y-%m-%d')}_{uuid.uuid4()}.png"
-        image_path: Path = save_path / filename
+        file_extension = self.filename.split(".")[-1].lower()
+        filename: str = f"{image_date.strftime('%Y-%m-%d')}_{uuid.uuid4()}.{file_extension}"
+        if existing_file_name and not math.isnan(existing_file_name):
+            filename = existing_file_name
+        image_path: str = os.path.join(save_dir, filename)
 
         # Save the image
-        image.save(image_path)
-        self.receipt_ref = str(Path(year_month) / filename)
-        return self.receipt_ref
+        if file_extension == "pdf":  # Handle PDFs
+            with open(image_path, "wb") as f:
+                f.write(self.data)
+        elif file_extension in ["jpg", "jpeg", "png"]:  # Handle Images (JPG, JPEG, PNG)
+            self.image.save(image_path)
+        else:
+            raise ValueError("Unsupported file format")
 
-    def get_base64_image(self) -> Optional[str]:
+        self.path = os.path.join(year_month, filename)
+        return filename
+
+    def delete_image(self) -> str:
+        if self.path is None:
+            return "No path was specified"
+        if os.path.isfile(self.path):
+            os.remove(self.path)
+            return "Receipt deleted successfully"
+        return f"Receipt does not exist at specified path: {self.path}"
+
+    def get_base64_image(self) -> List[str]:
         """Returns the image as a base64-encoded string."""
         if not self.path:
             raise ValueError("No Image has been loaded")
         buffered = BytesIO()
-        self.read_image().save(buffered, format="PNG")
-        encoded_string = base64.b64encode(buffered.getvalue()).decode("utf-8")
-        return f"data:image/png;base64,{encoded_string}"
+        base64_images = []
+        for image in self.read_image():
+            image.save(buffered, format="PNG")
+            encoded_string = base64.b64encode(buffered.getvalue()).decode("utf-8")
+            base64_images += f"data:image/png;base64,{encoded_string}"
+        return base64_images
+
+    def get_type(self):
+        return self.type

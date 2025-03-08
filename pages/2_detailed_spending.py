@@ -99,9 +99,8 @@ def render_detailed_spending(
         transaction_data = filtered_dataframe.iloc[transaction['selection']['rows'][0]]
         if not type(transaction_data[
                         'Receipt Ref']).__name__ == "float":  # this means its null as the receipt reference should be a string
-            st.image(
-                Receipt().set_path(transaction_data['Receipt Ref']).get_base64_image()
-            )
+            for image in Receipt().set_path(transaction_data['Receipt Ref']).get_base64_image():
+                st.image(image)
 
 
 st.set_page_config(layout="wide")

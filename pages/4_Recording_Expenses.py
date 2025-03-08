@@ -1,11 +1,10 @@
 import numpy as np
 import pandas as pd
 import streamlit as st
-from PIL import Image
-from pdf2image import convert_from_bytes
 from streamlit.delta_generator import DeltaGenerator
 
 import utils
+from receipt import Receipt
 
 
 def add_item():
@@ -101,7 +100,7 @@ def save_edited_values(edited_df: pd.DataFrame):
     refresh_all_the_data()
 
 
-@st.dialog("Add expenses")
+@st.dialog("Add expenses", width="large")
 def add_expenses(categorised_transactions: pd.DataFrame):
     sorted_df = categorised_transactions.sort_values(by=['Date'], ascending=False)
     with st.expander("Duplicate an existing expense entry"):
@@ -112,7 +111,7 @@ def add_expenses(categorised_transactions: pd.DataFrame):
             on_select="rerun",
             selection_mode="single-row"
         )
-    upload_display_image()
+    receipt = upload_display_image()
     # Form fields
     if prior_expenses_entry.selection.rows:
         new_row = handle_selection_and_prefill(prior_expenses_entry, sorted_df)
@@ -120,11 +119,9 @@ def add_expenses(categorised_transactions: pd.DataFrame):
         new_row = handle_selection_and_prefill(None, sorted_df)
 
     if st.button("Submit"):
-        if st.session_state.uploaded_file:
-            new_row['Receipt Ref'] = utils.save_file(st.session_state.uploaded_file, new_row['Date'],
-                                                     new_row['Receipt Ref'],
-                                                     st.session_state.rotation_angle)
-        # save the data
+        if st.session_state.receipt:
+            new_row['Receipt Ref'] = receipt.save_image(new_row['Date'], new_row['Receipt Ref'])
+
         edited_df = pd.concat(
             [categorised_transactions, pd.DataFrame([new_row])],
             ignore_index=True
@@ -138,41 +135,33 @@ def upload_display_image():
         type=["jpg", "jpeg", "png", "pdf"],
         accept_multiple_files=False
     )
+    receipt = Receipt()
     if "uploaded_file" not in st.session_state:
-        st.session_state.uploaded_file = None
-    if "rotation_angle" not in st.session_state:
-        st.session_state.rotation_angle = 0
+        st.session_state.receipt = None
 
     if st.button("Clear image"):
-        st.session_state.uploaded_file = None
+        st.session_state.receipt = None
 
-    if uploaded_file and not st.session_state.uploaded_file:
-        st.session_state.uploaded_file = uploaded_file
-
-    if st.session_state.uploaded_file and st.session_state.uploaded_file.type == "application/pdf":
-        images = convert_from_bytes(st.session_state.uploaded_file.read())
-        st.session_state.uploaded_file.seek(0)  # Reset pointer before reading
-        for page_num, img in enumerate(images):
-            st.image(img, caption=f"Uploaded Page {page_num + 1}", use_container_width=True)
+    if uploaded_file and not st.session_state.receipt:
+        receipt.set_uploaded_file(uploaded_file)
+        st.session_state.receipt = receipt
 
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Rotate Left (⟲ 90°)"):
-            st.session_state.rotation_angle += 90
+            receipt.rotate_anti_clockwise()
 
     with col2:
         if st.button("Rotate Right (⟳ 90°)"):
-            st.session_state.rotation_angle -= 90
+            receipt.rotate_clockwise()
 
-    if st.session_state.uploaded_file and st.session_state.uploaded_file.type != "application/pdf":
-        # st.write(st.session_state.uploaded_file)
-        st.image(utils.rotate_image(Image.open(st.session_state.uploaded_file), st.session_state.rotation_angle),
-                 caption=f"Uploaded receipt",
-                 use_container_width=True)
-    return st.session_state.uploaded_file
+    if st.session_state.receipt:
+        for img in st.session_state.receipt.read_image():
+            st.image(img, use_container_width=True)
+    return receipt
 
 
-@st.dialog("Delete expenses")
+@st.dialog("Delete expenses", width="large")
 def delete_expenses(categorised_transactions: pd.DataFrame):
     sorted_df = categorised_transactions.sort_values(by=['Date'], ascending=False)
     prior_expenses_entry = st.dataframe(
@@ -183,7 +172,9 @@ def delete_expenses(categorised_transactions: pd.DataFrame):
         selection_mode="single-row"
     )
     if prior_expenses_entry.selection.rows:
-        index_label = sorted_df.index[prior_expenses_entry.selection.rows[0]]
+        index = prior_expenses_entry.selection.rows[0]
+        deleted_entry = sorted_df.iloc[index]
+        index_label = sorted_df.index[index]
         edited_df = (
             sorted_df
             .drop(index=index_label)
@@ -192,6 +183,12 @@ def delete_expenses(categorised_transactions: pd.DataFrame):
             .reset_index()
         )
         if st.button("Delete Transaction"):
+            try:
+                st.write(Receipt().set_path(deleted_entry['Receipt Ref']).delete_image())
+            except FileNotFoundError:
+                st.write("File has already been deleted or doesn't exist")
+            except ValueError:
+                st.write("Receipt filename is invalid")
             save_reset(edited_df)
 
 
@@ -204,7 +201,7 @@ def unique_items_and_index(series: pd.Series, value):
     return unique_series, index
 
 
-@st.dialog("Edit expenses")
+@st.dialog("Edit expenses", width="large")
 def edit_expenses(categorised_transactions: pd.DataFrame):
     sorted_df = categorised_transactions.sort_values(by=['Date'], ascending=False)
     prior_expenses_entry = st.dataframe(
@@ -218,17 +215,17 @@ def edit_expenses(categorised_transactions: pd.DataFrame):
     if prior_expenses_entry.selection.rows:
         # Get the data for the selected row
         new_row = handle_selection_and_prefill(prior_expenses_entry, sorted_df)
-        image = None
+        image = Receipt()
         if not str(new_row['Receipt Ref']) == "nan":
-            image = utils.read_image(new_row['Receipt Ref'])
-            st.image(image, caption=new_row['Receipt Ref'], use_container_width=True)
+            image.set_path(new_row['Receipt Ref'])
+            for img in image.read_image():
+                st.image(img, caption=new_row['Receipt Ref'], use_container_width=True)
         else:
             image = upload_display_image()
 
         if st.button("Edit transaction"):
             if image:
-                new_row['Receipt Ref'] = utils.save_file(image, new_row['Date'], new_row['Receipt Ref'],
-                                                         st.session_state.rotation_angle)
+                new_row['Receipt Ref'] = image.save_image(new_row['Date'], new_row['Receipt Ref'])
             sorted_df.iloc[prior_expenses_entry.selection.rows[0]] = new_row
             edited_df = sorted_df[utils.SPENDING_DATA_SCHEMA].sort_values(by=["Date"]).reset_index()
             save_reset(edited_df)
