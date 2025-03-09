@@ -3,19 +3,22 @@ import pandas as pd
 import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 
-import utils
+import spending
+from spending import SpendingData
 
 
 def render_recent_spending(
     recent: DeltaGenerator,
-    filtered_dataframe: pd.DataFrame):
+    spending_data: SpendingData):
+    filtered_dataframe = spending_data.combine().combined.loc[
+        lambda df: df.Date > pd.Timestamp.now() - pd.DateOffset(months=1)]
     recent.header("Past 30 Days Expenditures")
     recent.write('''
     The goal of this page is to provide a simple overview of the past 30 days.
     
     It is intended to be very minimal and at a glance.
     ''')
-    recent.sidebar.button("Refresh Data", on_click=utils.fetch_spending_data.clear)
+    recent.sidebar.button("Refresh Data", on_click=spending_data.fetch_spending_data.clear)
 
     recent.metric("Total Cost", f"${round(filtered_dataframe.Cost.sum(), 2)}")
     metrics = recent.container()
@@ -65,5 +68,4 @@ def render_recent_spending(
     ), use_container_width=True)
 
 
-render_recent_spending(st, utils.fetch_spending_data().combine().combined.loc[
-    lambda df: df.Date > pd.Timestamp.now() - pd.DateOffset(months=1)])
+render_recent_spending(st, spending.SpendingData().fetch_spending_data())

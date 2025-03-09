@@ -1,5 +1,6 @@
 import streamlit as st
 
+import spending
 import utils
 
 st.set_page_config(
@@ -12,8 +13,8 @@ This is the landing page
 """)
 
 st.write(utils.INCOME_PATH)
-st.write(utils.SPENDING_PATH)
+st.write(spending.SPENDING_PATH)
 
 utils.fetch_income_deduction_data()
-utils.fetch_spending_data()
+spending.SpendingData().fetch_spending_data()
 utils.fetch_transaction_data()
