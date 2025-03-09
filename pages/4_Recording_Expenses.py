@@ -186,7 +186,8 @@ def delete_expenses(categorised_transactions: pd.DataFrame):
         )
         if st.button("Delete Transaction"):
             try:
-                st.write(Receipt().set_path(deleted_entry['Receipt Ref']).delete_image())
+                if deleted_entry['Receipt Ref']:
+                    st.write(Receipt().set_path(deleted_entry['Receipt Ref']).delete_image())
             except FileNotFoundError:
                 st.write("File has already been deleted or doesn't exist")
             except ValueError:
@@ -226,7 +227,7 @@ def edit_expenses(categorised_transactions: pd.DataFrame):
             image = upload_display_image()
 
         if st.button("Edit transaction"):
-            if image:
+            if image.data:
                 new_row['Receipt Ref'] = image.save_image(new_row['Date'], new_row['Receipt Ref'])
             sorted_df.iloc[prior_expenses_entry.selection.rows[0]] = new_row
             edited_df = sorted_df[spending.SPENDING_DATA_SCHEMA].sort_values(by=["Date"]).reset_index()

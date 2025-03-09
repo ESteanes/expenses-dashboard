@@ -113,6 +113,7 @@ existing_locations = set(spending_data.location['Location'])
 spending_locations = set(spending_data.spending['Location'].dropna())
 missing_locations = spending_locations - existing_locations
 
+st.set_page_config(layout="wide")
 st.title("Add Missing Locations with Coordinates")
 
 new_location_entries = []
@@ -140,5 +141,7 @@ if selected_location.selection.rows:
     locations_to_display = locations_to_display.iloc[[selected_location.selection.rows[0]]]
     modify_existing_coordinates(spending_data, locations_to_display, selected_location.selection.rows[0], geolocator,
                                 col2)
-col2.map(locations_to_display.rename(columns={"Latitude": "latitude", "Longitude": "longitude"}))
+    col2.map(locations_to_display.rename(columns={"Latitude": "latitude", "Longitude": "longitude"}))
+
+st.map(spending_data.location.rename(columns={"Latitude": "latitude", "Longitude": "longitude"}))
 # Save all new locations to the location DataFrame

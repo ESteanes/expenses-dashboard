@@ -81,8 +81,17 @@ class SpendingData:
         save_data(self.location, SPENDING_PATH, LOCATION)
 
     def save_hierarchy(self) -> None:
+        self.save_top()
+        self.save_middle()
+        self.save_base()
+
+    def save_top(self) -> None:
         save_data(self.top_table, SPENDING_PATH, TOP_TABLE)
+
+    def save_middle(self):
         save_data(self.middle_table, SPENDING_PATH, MIDDLE_TABLE)
+
+    def save_base(self):
         save_data(self.base_table, SPENDING_PATH, BASE_TABLE)
 
     @st.cache_data
