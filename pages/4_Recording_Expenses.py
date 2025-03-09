@@ -113,7 +113,7 @@ def add_expenses(categorised_transactions: pd.DataFrame):
             on_select="rerun",
             selection_mode="single-row"
         )
-    receipt = upload_display_image()
+    upload_display_image()
     # Form fields
     if prior_expenses_entry.selection.rows:
         new_row = handle_selection_and_prefill(prior_expenses_entry, sorted_df)
@@ -122,7 +122,7 @@ def add_expenses(categorised_transactions: pd.DataFrame):
 
     if st.button("Submit"):
         if st.session_state.receipt:
-            new_row['Receipt Ref'] = receipt.save_image(new_row['Date'], new_row['Receipt Ref'])
+            new_row['Receipt Ref'] = st.session_state.receipt.save_image(new_row['Date'], new_row['Receipt Ref'])
 
         edited_df = pd.concat(
             [categorised_transactions, pd.DataFrame([new_row])],
@@ -131,7 +131,7 @@ def add_expenses(categorised_transactions: pd.DataFrame):
         save_reset(edited_df)
 
 
-def upload_display_image():
+def upload_display_image() -> None:
     uploaded_file = st.file_uploader(
         "Upload receipt images",
         type=["jpg", "jpeg", "png", "pdf"],
@@ -160,7 +160,6 @@ def upload_display_image():
     if st.session_state.receipt:
         for img in st.session_state.receipt.read_image():
             st.image(img, use_container_width=True)
-    return receipt
 
 
 @st.dialog("Delete expenses", width="large")
@@ -224,11 +223,13 @@ def edit_expenses(categorised_transactions: pd.DataFrame):
             for img in image.read_image():
                 st.image(img, caption=new_row['Receipt Ref'], use_container_width=True)
         else:
-            image = upload_display_image()
+            upload_display_image()
 
         if st.button("Edit transaction"):
-            if image.data:
-                new_row['Receipt Ref'] = image.save_image(new_row['Date'], new_row['Receipt Ref'])
+            if st.session_state.receipt:
+                if st.session_state.receipt.data:
+                    new_row['Receipt Ref'] = st.session_state.receipt.save_image(new_row['Date'],
+                                                                                 new_row['Receipt Ref'])
             sorted_df.iloc[prior_expenses_entry.selection.rows[0]] = new_row
             edited_df = sorted_df[spending.SPENDING_DATA_SCHEMA].sort_values(by=["Date"]).reset_index()
             save_reset(edited_df)
