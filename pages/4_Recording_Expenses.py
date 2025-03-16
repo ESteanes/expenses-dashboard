@@ -3,10 +3,10 @@ import pandas as pd
 import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 
-import spending
+import classes.spending as spending
 import utils
-from receipt import Receipt
-from spending import SpendingData
+from classes.receipt import Receipt
+from classes.spending import SpendingData
 
 
 def add_item():
@@ -151,15 +151,15 @@ def upload_display_image() -> None:
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Rotate Left (⟲ 90°)"):
-            receipt.rotate_anti_clockwise()
+            st.session_state.receipt.rotate_anti_clockwise()
 
     with col2:
         if st.button("Rotate Right (⟳ 90°)"):
-            receipt.rotate_clockwise()
+            st.session_state.receipt.rotate_clockwise()
 
     if st.session_state.receipt:
-        for img in st.session_state.receipt.read_image():
-            st.image(img, use_container_width=True)
+        utils.display_image(st.session_state.receipt)
+
 
 
 @st.dialog("Delete expenses", width="large")
@@ -220,8 +220,7 @@ def edit_expenses(categorised_transactions: pd.DataFrame):
         image = Receipt()
         if not str(new_row['Receipt Ref']) == "nan":
             image.set_path(new_row['Receipt Ref'])
-            for img in image.read_image():
-                st.image(img, caption=new_row['Receipt Ref'], use_container_width=True)
+            utils.display_image(image)
         else:
             upload_display_image()
 
@@ -242,6 +241,7 @@ def save_reset(edited_df):
         spending.SPENDING_SHEET_NAME)
     spending.SpendingData().fetch_spending_data.clear()
     st.session_state.uploaded_file = None
+    st.session_state.receipt = None
     st.rerun()
 
 

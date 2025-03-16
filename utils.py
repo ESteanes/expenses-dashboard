@@ -9,6 +9,8 @@ import requests
 import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 
+from classes.receipt import Receipt
+
 INCOME_SHEET_NAME = "Income"
 INCOME_DATA_SCHEMA = [
     "Gross Income",
@@ -354,3 +356,14 @@ def find_index_in_list(list: List[str], search_value: str) -> int:
         if val == search_value:
             return i
     return 0
+
+def display_image(selected_receipt: Receipt):
+    if selected_receipt.type == Receipt.PDF_TYPE:
+        for img in selected_receipt.read_from_path().read_image():
+            st.image(img, use_container_width=True)
+        return
+    if selected_receipt.path:
+        st.image(selected_receipt.path)
+        return
+    for img in st.session_state.receipt.read_image():
+        st.image(img, use_container_width=True)
