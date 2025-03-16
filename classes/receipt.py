@@ -15,6 +15,8 @@ class Receipt:
     """A class to handle receipt image operations."""
 
     BASE_PATH = os.getenv("RECEIPT_PATH", "/app/data/receipts")
+    PDF_TYPE = "application/pdf"
+    IMAGE_TYPE = "image"
 
     def __init__(self):
         """Initialize the receipt with an optional reference."""
@@ -27,10 +29,15 @@ class Receipt:
 
     def set_uploaded_file(self, uploaded_file: UploadedFile):
         self.filename = uploaded_file.name
-        self.type = uploaded_file.type
+        self.type = uploaded_file.type 
+        
+        if self.type == Receipt.PDF_TYPE:
+            self.data = uploaded_file.read()
+            return
+        
         self.data = uploaded_file
-        if not self.type == "application/pdf":
-            self.image = Image.open(self.data)
+        self.image = Image.open(self.data)
+        return
 
     def set_path(self, receipt_ref: str):
         try:
@@ -44,6 +51,7 @@ class Receipt:
             raise FileNotFoundError(f"Image not found: {file_path}")
         self.path = file_path
         self.reference = receipt_ref
+        self.type = self.determine_type_from_filename(receipt_ref)
         return self
 
     def read_image(self) -> List[Image.Image]:
@@ -65,10 +73,12 @@ class Receipt:
         return self.image
 
     def rotate_clockwise(self):
-        self.rotate_image(-90)
+        if not self.type == Receipt.PDF_TYPE: 
+            self.rotate_image(-90)
 
     def rotate_anti_clockwise(self):
-        self.rotate_image(90)
+        if not self.type == Receipt.PDF_TYPE: 
+            self.rotate_image(90)
 
     def save_image(self, image_date: pd.Timestamp, existing_file_name: Optional[str | float]) -> str:
         if self.data is None:
@@ -118,5 +128,17 @@ class Receipt:
             base64_images += f"data:image/png;base64,{encoded_string}"
         return base64_images
 
+    def read_from_path(self):
+        with open(self.path, "rb") as f:
+            self.data = f.read()
+        return self
+
+
     def get_type(self):
         return self.type
+    
+    def determine_type_from_filename(self, filename: str) -> str:
+        extension = filename.split(".")[-1].lower()
+        if extension == "pdf":
+            return self.PDF_TYPE
+        return self.IMAGE_TYPE
