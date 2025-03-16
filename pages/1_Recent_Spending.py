@@ -3,8 +3,8 @@ import pandas as pd
 import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 
-import spending
-from spending import SpendingData
+import classes.spending as spending
+from classes.spending import SpendingData
 
 
 def render_recent_spending(

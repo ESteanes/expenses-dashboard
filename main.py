@@ -1,6 +1,6 @@
 import streamlit as st
 
-import spending
+import classes.spending as spending
 import utils
 
 st.set_page_config(

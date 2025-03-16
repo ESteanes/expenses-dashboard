@@ -3,10 +3,10 @@ import pandas as pd
 import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 
-import spending
+import classes.spending as spending
 import utils
-from receipt import Receipt
-from spending import SpendingData
+from classes.receipt import Receipt
+from classes.spending import SpendingData
 
 
 def add_item():

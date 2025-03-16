@@ -5,7 +5,7 @@ import streamlit as st
 from geopy.geocoders import Nominatim
 from streamlit.delta_generator import DeltaGenerator
 
-import spending
+import classes.spending as spending
 
 # Initialize geolocator
 geolocator = Nominatim(user_agent="streamlit-location-finder")
