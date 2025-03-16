@@ -35,6 +35,7 @@ def render_detailed_spending(
         .loc[lambda df: df['Sub Category'].isin(selected_sub_category) if selected_sub_category else [True] * len(df)]
         .loc[lambda df: df.Category.isin(selected_category) if selected_category else [True] * len(df)]
     )
+    filtered_dataframe['Has Receipt'] = filtered_dataframe['Receipt Ref'].notna()
     # Header
     detailed.title("Detailed Spending Analysis")
     # Create columns for visualizations
@@ -87,23 +88,27 @@ def render_detailed_spending(
     col2.map(map_data, size='Cost')
 
     st.subheader("Line items")
-
+    column_config = {
+        "Date": st.column_config.DateColumn("Date", format="ddd DD-MM-YY"),
+        "Details": st.column_config.TextColumn("Details", width="medium"),
+        "Has Receipt": st.column_config.CheckboxColumn("Receipt",width="small",disabled=True)
+    }
+    column_order = ["Date", "Item", "Cost", "Shop", "Location", "Tag", "Details", "Sub Category", "Has Receipt"]
     transaction = detailed.dataframe(filtered_dataframe,
-                                     #                    column_config={
-                                     #     "Receipt Base64": st.column_config.ImageColumn(
-                                     #         "Preview Image", help="Streamlit app preview screenshots"
-                                     #     )
-                                     # }
                                      selection_mode="single-row",
-                                     on_select="rerun"
+                                     on_select="rerun",
+                                     hide_index=True,
+                                     column_config=column_config,
+                                     column_order=column_order,
+                                     use_container_width=True
                                      )
 
     if transaction['selection']['rows']:
         transaction_data = filtered_dataframe.iloc[transaction['selection']['rows'][0]]
         if not type(transaction_data[
                         'Receipt Ref']).__name__ == "float":  # this means its null as the receipt reference should be a string
-            for image in Receipt().set_path(transaction_data['Receipt Ref']).get_base64_image():
-                st.image(image)
+            selected_receipt = Receipt().set_path(transaction_data['Receipt Ref'])
+            utils.display_image(selected_receipt)
 
 
 st.set_page_config(layout="wide")
