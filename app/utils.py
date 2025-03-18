@@ -9,6 +9,7 @@ import requests
 import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 
+from classes import spending
 from classes.receipt import Receipt
 
 INCOME_SHEET_NAME = "Income"
@@ -367,3 +368,7 @@ def display_image(selected_receipt: Receipt):
         return
     for img in st.session_state.receipt.read_image():
         st.image(img, use_container_width=True)
+
+def refresh_all_the_data():
+    fetch_transaction_data.clear()
+    spending.SpendingData().fetch_spending_data.clear()
