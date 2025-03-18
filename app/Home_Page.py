@@ -18,7 +18,7 @@ uncategorised_transactions = transaction_data[
         ~transaction_data['transactionId'].isin(spending_data.spending['transactionId'])
     ]
 
-st.metric("Last Refresh", st.session_state.last_refresh.strftime("%Y-%m-%d %H:%M:%S"))
+st.metric("Last Refresh", f"{st.session_state.last_refresh.strftime("%Y/%m/%d %H:%M:%S")} - {int(pd.Timedelta(pd.Timestamp.now() - st.session_state.last_refresh).total_seconds()/(60*60))} hours ago")
 col1, col2, col3 = st.columns(3, border=True)
 col1.metric("No. uncategorised transactions", len(uncategorised_transactions))
 col1.metric("No. transactions from Up Bank", len(transaction_data))
@@ -31,7 +31,7 @@ col2.metric("No. transactions recorded", len(spending_data.spending))
 
 col3.metric(
       "Most recent income recorded",
-      income['Date'].max().strftime("%Y-%m-%d")
+      income['Date'].max().strftime("%Y/%m/%d")
     )
 col3.metric("No. incomes recorded", len(income))
 
