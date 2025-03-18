@@ -15,12 +15,6 @@ def add_item():
         st.session_state.additional_items.append(new_item)  # Add item to the list
         st.session_state.new_item_input = ""  # Clear the input field
 
-
-def refresh_all_the_data():
-    utils.fetch_transaction_data.clear()
-    spending.SpendingData().fetch_spending_data.clear()
-
-
 def get_info(spending_data: pd.DataFrame):
     column_config = {
         "Item": st.column_config.SelectboxColumn(
@@ -99,7 +93,7 @@ def get_info(spending_data: pd.DataFrame):
 
 def save_edited_values(edited_df: pd.DataFrame):
     utils.save_data(edited_df, spending.SPENDING_PATH, spending.SPENDING_SHEET_NAME)
-    refresh_all_the_data()
+    utils.refresh_all_the_data()
 
 
 @st.dialog("Add expenses", width="large")
@@ -317,7 +311,7 @@ def handle_selection_and_prefill(prior_expenses_entry, sorted_df: pd.DataFrame):
 
 
 def initialise_sidebar(inputs: DeltaGenerator, categorised_transactions: pd.DataFrame):
-    inputs.sidebar.button("Refresh Data", on_click=refresh_all_the_data)
+    inputs.sidebar.button("Refresh Data", on_click=utils.refresh_all_the_data)
     if "additional_items" not in st.session_state:
         st.session_state.additional_items = []
 
