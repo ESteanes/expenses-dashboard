@@ -1,15 +1,13 @@
 # app/Dockerfile
 
-FROM python:3.11-slim
+FROM --platform=$BUILDPLATFORM python:3.11-slim
 
+ARG TARGETOS
+ARG TARGETARCH
+
+RUN echo "I am running on $TARGETOS, building for $TARGETARCH" > /log
 WORKDIR /app
 
-# RUN apt-get update && apt-get install -y \
-#     build-essential \
-#     curl \
-#     software-properties-common \
-#     git \
-#     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./
 COPY app/ ./app/
