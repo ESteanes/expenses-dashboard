@@ -3,10 +3,13 @@ import pandas as pd
 import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 
-import classes.spending as spending
-import utils
-from classes.receipt import Receipt
-from classes.spending import SpendingData
+import app.classes.spending as spending
+import app.utils as utils
+from app.classes.receipt import Receipt
+from app.classes.spending import SpendingData
+
+import app.classes.datamanipulator
+from app.classes.datamanipulator import DataManipulator, FileType, TableName
 
 
 def add_item():
@@ -92,7 +95,12 @@ def get_info(spending_data: pd.DataFrame):
 
 
 def save_edited_values(edited_df: pd.DataFrame):
-    utils.save_data(edited_df, spending.SPENDING_PATH, spending.SPENDING_SHEET_NAME)
+    # utils.save_data(edited_df, app.classes.datamanipulator.SPENDING_PATH,
+    #                 app.classes.datamanipulator.SPENDING_SHEET_NAME)
+    DataManipulator().save_backing_table(
+        FileType.SPENDING,
+        TableName.SPENDING,
+        edited_df)
     utils.refresh_all_the_data()
 
 
@@ -131,7 +139,7 @@ def upload_display_image() -> None:
         type=["jpg", "jpeg", "png", "pdf"],
         accept_multiple_files=False
     )
-    receipt = Receipt()
+    receipt = Receipt(DataManipulator())
     if "receipt" not in st.session_state:
         st.session_state.receipt = None
 
@@ -180,7 +188,7 @@ def delete_expenses(categorised_transactions: pd.DataFrame):
         if st.button("Delete Transaction"):
             try:
                 if deleted_entry['Receipt Ref']:
-                    st.write(Receipt().set_path(deleted_entry['Receipt Ref']).delete_image())
+                    st.write(Receipt(DataManipulator()).set_path(deleted_entry['Receipt Ref']).delete_image())
             except FileNotFoundError:
                 st.write("File has already been deleted or doesn't exist")
             except ValueError:
@@ -211,7 +219,7 @@ def edit_expenses(categorised_transactions: pd.DataFrame):
     if prior_expenses_entry.selection.rows:
         # Get the data for the selected row
         new_row = handle_selection_and_prefill(prior_expenses_entry, sorted_df)
-        image = Receipt()
+        image = Receipt(DataManipulator())
         if not str(new_row['Receipt Ref']) == "nan":
             image.set_path(new_row['Receipt Ref'])
             utils.display_image(image)
@@ -229,11 +237,9 @@ def edit_expenses(categorised_transactions: pd.DataFrame):
 
 
 def save_reset(edited_df):
-    utils.save_data(
-        edited_df,
-        spending.SPENDING_PATH,
-        spending.SPENDING_SHEET_NAME)
-    spending.SpendingData().fetch_spending_data.clear()
+    DataManipulator().save_backing_table(app.classes.datamanipulator.SPENDING_FILE,
+                                         app.classes.datamanipulator.SPENDING_SHEET_NAME, edited_df)
+    spending.SpendingData(DataManipulator()).fetch_spending_data.clear()
     st.session_state.uploaded_file = None
     st.session_state.receipt = None
     st.rerun()
@@ -250,7 +256,6 @@ def handle_selection_and_prefill(prior_expenses_entry, sorted_df: pd.DataFrame):
     tag_value = None
     date_value = None
     receipt_ref_value = None
-    receipt_value = None
     transaction_id_value = None
     if prior_expenses_entry:
         selected_row_data = sorted_df.iloc[prior_expenses_entry.selection.rows[0]]
@@ -264,7 +269,6 @@ def handle_selection_and_prefill(prior_expenses_entry, sorted_df: pd.DataFrame):
         tag_value = selected_row_data["Tag"]
         date_value = selected_row_data["Date"]
         receipt_ref_value = selected_row_data["Receipt Ref"]
-        receipt_value = selected_row_data["Receipt"]
         transaction_id_value = selected_row_data["transactionId"]
     item_unique, item_index = unique_items_and_index(sorted_df.Item, item_value)
     item = st.selectbox("Item", options=np.append(
@@ -380,4 +384,4 @@ def render_transaction_input(inputs: DeltaGenerator, spending_data: SpendingData
 
 # We need to have some sort of way to
 st.set_page_config(layout="wide")
-render_transaction_input(st, spending.SpendingData().fetch_spending_data())
+render_transaction_input(st, SpendingData(DataManipulator()).fetch_spending_data())

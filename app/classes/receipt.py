@@ -10,6 +10,8 @@ from PIL import Image
 from pdf2image import convert_from_bytes
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 
+from app.classes.datamanipulator import DataManipulator, DataSource
+
 
 class Receipt:
     """A class to handle receipt image operations."""
@@ -18,7 +20,7 @@ class Receipt:
     PDF_TYPE = "application/pdf"
     IMAGE_TYPE = "image"
 
-    def __init__(self):
+    def __init__(self, data_manipulator: DataManipulator):
         """Initialize the receipt with an optional reference."""
         self.reference: Optional[str] = None
         self.filename: str = ""
@@ -26,6 +28,7 @@ class Receipt:
         self.data: bytes = None
         self.image: Optional[Image.Image] = None
         self.path = None
+        self.datasource = data_manipulator.datasource
 
     def set_uploaded_file(self, uploaded_file: UploadedFile):
         self.filename = uploaded_file.name
@@ -81,6 +84,11 @@ class Receipt:
             self.rotate_image(90)
 
     def save_image(self, image_date: pd.Timestamp, existing_file_name: Optional[str | float]) -> str:
+        if self.datasource == DataSource.EXCEL or self.datasource == DataSource.NEXTCLOUD:
+            return self.save_image_excel(image_date, existing_file_name)
+        raise ValueError(f"Invalid data source {self.datasource}")
+
+    def save_image_excel(self, image_date: pd.Timestamp, existing_file_name: Optional[str | float]) -> str:
         if self.data is None:
             raise ValueError("No image provided to save.")
 

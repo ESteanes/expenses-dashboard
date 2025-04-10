@@ -1,16 +1,8 @@
-import os
-
 import pandas as pd
 import streamlit as st
 
-from utils import remove_unnamed_columns
+from .datamanipulator import DataManipulator, FileType, TableName, remove_unnamed_columns
 
-SPENDING_SHEET_NAME = "Spending"
-MIDDLE_TABLE = "Middle Table"
-TOP_TABLE = "Top_Table"
-BASE_TABLE = "Base Table"
-LOCATION = "Location"
-SPENDING_PATH = os.getenv("EXCEL_PATH_SPENDING", default="/app/data/spending.xlsx")
 SPENDING_DATA_SCHEMA = [
     "Item",
     "Cost",
@@ -43,10 +35,10 @@ def save_data(df: pd.DataFrame, file_path: str, sheet_name: str):
 
 
 class SpendingData:
-    def __init__(self, spending: pd.DataFrame = None, location: pd.DataFrame = None,
-                 base_table: pd.DataFrame = None, middle_table: pd.DataFrame = None,
-                 top_table: pd.DataFrame = None):
+    def __init__(self, data_manipulator: DataManipulator, spending: pd.DataFrame = None, location: pd.DataFrame = None,
+                 base_table: pd.DataFrame = None, middle_table: pd.DataFrame = None, top_table: pd.DataFrame = None):
         """Initialize with preloaded tables."""
+        self.data_manipulator = data_manipulator
         self.spending = spending
         self.location = location
         self.base_table = base_table
@@ -75,10 +67,12 @@ class SpendingData:
         return self
 
     def save_spending(self):
-        save_data(self.spending, SPENDING_PATH, SPENDING_SHEET_NAME)
+        # save_data(self.spending, SPENDING_PATH, SPENDING_SHEET_NAME)
+        self.data_manipulator.save_backing_table(FileType.SPENDING, TableName.SPENDING, self.spending)
 
     def save_location(self):
-        save_data(self.location, SPENDING_PATH, LOCATION)
+        # save_data(self.location, SPENDING_PATH, LOCATION)
+        self.data_manipulator.save_backing_table(FileType.SPENDING, TableName.LOCATION, self.location)
 
     def save_hierarchy(self) -> None:
         self.save_top()
@@ -86,25 +80,33 @@ class SpendingData:
         self.save_base()
 
     def save_top(self) -> None:
-        save_data(self.top_table, SPENDING_PATH, TOP_TABLE)
+        # save_data(self.top_table, SPENDING_PATH, TOP_TABLE)
+        self.data_manipulator.save_backing_table(FileType.SPENDING, TableName.TOP, self.top_table)
 
     def save_middle(self):
-        save_data(self.middle_table, SPENDING_PATH, MIDDLE_TABLE)
+        # save_data(self.middle_table, SPENDING_PATH, MIDDLE_TABLE)
+        self.data_manipulator.save_backing_table(FileType.SPENDING, TableName.MIDDLE, self.middle_table)
 
     def save_base(self):
-        save_data(self.base_table, SPENDING_PATH, BASE_TABLE)
+        # save_data(self.base_table, SPENDING_PATH, BASE_TABLE)
+        self.data_manipulator.save_backing_table(FileType.SPENDING, TableName.BASE, self.base_table)
 
     @st.cache_data
     def fetch_spending_data(_self):
         # Data ingest and basic prep hello
-        spending_data = pd.read_excel(
-            SPENDING_PATH,
-            sheet_name=[SPENDING_SHEET_NAME, TOP_TABLE, MIDDLE_TABLE, BASE_TABLE, LOCATION])
-
-        return SpendingData(
-            spending=(remove_unnamed_columns(spending_data['Spending'])),
-            top_table=(remove_unnamed_columns(spending_data['Top_Table'])),
-            middle_table=(remove_unnamed_columns(spending_data['Middle Table'])),
-            base_table=(remove_unnamed_columns(spending_data['Base Table'])),
-            location=(remove_unnamed_columns(spending_data['Location']))
-        )
+        fetched_data = _self.data_manipulator.fetch_backing_table(FileType.SPENDING)
+        _self.spending = remove_unnamed_columns(fetched_data['Spending'])
+        _self.location=(remove_unnamed_columns(fetched_data['Location']))
+        _self.base_table=(remove_unnamed_columns(fetched_data['Base Table']))
+        _self.middle_table=(remove_unnamed_columns(fetched_data['Middle Table']))
+        _self.top_table=(remove_unnamed_columns(fetched_data['Top_Table']))    # spending_data = pd.read_excel(
+        #     SPENDING_PATH,
+        #     sheet_name=[SPENDING_SHEET_NAME, TOP_TABLE, MIDDLE_TABLE, BASE_TABLE, LOCATION]
+        #
+        # return SpendingData(DataManipulator(),
+        #                     spending=(remove_unnamed_columns(spending_data['Spending'])),
+        #                     location=(remove_unnamed_columns(spending_data['Location'])),
+        #                     base_table=(remove_unnamed_columns(spending_data['Base Table'])),
+        #                     middle_table=(remove_unnamed_columns(spending_data['Middle Table'])),
+        #                     top_table=(remove_unnamed_columns(spending_data['Top_Table'])))
+        return _self

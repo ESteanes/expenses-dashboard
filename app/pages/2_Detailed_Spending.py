@@ -3,10 +3,11 @@ import plotly.express as px
 import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 
-import classes.spending as spending
-import utils
-from classes.receipt import Receipt
-from classes.spending import SpendingData
+import app.classes.spending as spending
+import app.utils as utils
+from app.classes.datamanipulator import DataManipulator
+from app.classes.receipt import Receipt
+from app.classes.spending import SpendingData
 
 
 def render_detailed_spending(
@@ -106,10 +107,10 @@ def render_detailed_spending(
     if transaction['selection']['rows']:
         transaction_data = filtered_dataframe.iloc[transaction['selection']['rows'][0]]
         if not type(transaction_data[
-                        'Receipt Ref']).__name__ == "float":  # this means its null as the receipt reference should be a string
-            selected_receipt = Receipt().set_path(transaction_data['Receipt Ref'])
+                        'Receipt Ref']).__name__ == "float":  # this means it's null as the receipt reference should be a string
+            selected_receipt = Receipt(DataManipulator()).set_path(transaction_data['Receipt Ref'])
             utils.display_image(selected_receipt)
 
 
 st.set_page_config(layout="wide")
-render_detailed_spending(st, spending.SpendingData().fetch_spending_data())
+render_detailed_spending(st, spending.SpendingData(DataManipulator()).fetch_spending_data())

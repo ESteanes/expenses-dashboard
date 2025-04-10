@@ -7,12 +7,13 @@ import altair as alt
 import pandas as pd
 import requests
 import streamlit as st
+from pandas.core.interchange.dataframe_protocol import DataFrame
 from streamlit.delta_generator import DeltaGenerator
 
-from classes import spending
+from app.classes.datamanipulator import DataManipulator, remove_unnamed_columns
+from app.classes.spending import SpendingData
 from classes.receipt import Receipt
 
-INCOME_SHEET_NAME = "Income"
 INCOME_DATA_SCHEMA = [
     "Gross Income",
     "Salary Sacrifice",
@@ -43,19 +44,19 @@ class IncomeEntry:
     comment: str
 
     @classmethod
-    def from_Series(self, row: pd.Series):
+    def from_series(cls, row: pd.Series):
         """Creates an IncomeEntry from a DataFrame row (df.iloc[index])."""
-        self.gross_income = row["Gross Income"]
-        self.salary_sacrifice = row["Salary Sacrifice"]
-        self.tax = row["Tax"]
-        self.income = row["Income"]
-        self.date = pd.to_datetime(row["Date"])
-        self.employer = row["Employer"]
-        self.description = row["Description"]
-        self.taxable = row["Taxable"]
-        self.received_in_bank_account = row["Received in bank account"]
-        self.comment = row["Comment"]
-        return self
+        cls.gross_income = row["Gross Income"]
+        cls.salary_sacrifice = row["Salary Sacrifice"]
+        cls.tax = row["Tax"]
+        cls.income = row["Income"]
+        cls.date = pd.to_datetime(row["Date"])
+        cls.employer = row["Employer"]
+        cls.description = row["Description"]
+        cls.taxable = row["Taxable"]
+        cls.received_in_bank_account = row["Received in bank account"]
+        cls.comment = row["Comment"]
+        return cls
 
     def to_dataframe(self) -> pd.DataFrame:
         return pd.DataFrame([{
@@ -72,7 +73,7 @@ class IncomeEntry:
         }])
 
     @classmethod
-    def builder(self):
+    def builder(cls):
         return IncomeEntryBuilder()
 
 
@@ -141,30 +142,24 @@ class SpendingEntry:
     transaction_id: str
 
     @classmethod
-    def from_dataframe(self, row: pd.Series):
+    def from_dataframe(cls, row: pd.Series):
         """Creates a SpendingEntry from a DataFrame row (df.iloc[index])."""
-        self.item = row["Item"]
-        self.cost = row["Cost"]
-        self.quantity = row["Quantity"]
-        self.measure = row["Measure"]
-        self.location = row["Location"]
-        self.shop = row["Shop"]
-        self.details = row["Details"]
-        self.tag = row["Tag"]
-        self.date = pd.to_datetime(row["Date"])
-        self.receipt_ref = row["Receipt Ref"]
-        self.receipt = row["Receipt"]
-        self.transaction_id = row["transactionId"]
+        cls.item = row["Item"]
+        cls.cost = row["Cost"]
+        cls.quantity = row["Quantity"]
+        cls.measure = row["Measure"]
+        cls.location = row["Location"]
+        cls.shop = row["Shop"]
+        cls.details = row["Details"]
+        cls.tag = row["Tag"]
+        cls.date = pd.to_datetime(row["Date"])
+        cls.receipt_ref = row["Receipt Ref"]
+        cls.receipt = row["Receipt"]
+        cls.transaction_id = row["transactionId"]
 
 
 TAXABLE_OPTIONS = ["Not-taxable", "Taxable", "Franked Dividends"]
-INCOME_PATH = os.getenv("EXCEL_PATH_INCOME", default="/app/data/income.xlsx")
-EXPENSE_MANAGER_URL = os.getenv("EXPENSE_MANAGER_URL", default="http://localhost:8080")
-RECEIPT_PATH = os.getenv("RECEIPT_PATH", default="/app/data/receipts")
-
-
-def remove_unnamed_columns(df):
-    return df.loc[:, ~df.columns.str.contains('^Unnamed')]
+EXPENSE_MANAGER_URL = os.getenv("EXPENSE_MANAGER_URL", default="http://localhost:6123")
 
 
 def calculate_financial_year(date):
@@ -178,12 +173,10 @@ def calculate_financial_year(date):
         return f"FY {year - 1}/{year}"
 
 
+
 @st.cache_data
 def fetch_income_deduction_data():
-    income_sheets = pd.read_excel(
-        INCOME_PATH,
-        sheet_name=["Income", "Deductions"]
-    )
+    income_sheets = DataManipulator().fetch_income_table()
     income_data = remove_unnamed_columns(income_sheets['Income'])
     income_data.loc[:, ["Salary Sacrifice", "Tax"]] = income_data.loc[:,
                                                       ["Salary Sacrifice", "Tax"]
@@ -209,7 +202,7 @@ def fetch_income_deduction_data():
 
 
 def date_sidebar(
-    st: DeltaGenerator,
+    streamlit: DeltaGenerator,
     df: pd.DataFrame,
     date_key: str,
     start_at_minimum=False
@@ -220,12 +213,12 @@ def date_sidebar(
     if start_at_minimum:
         start_date_initial_value = minimum_date
 
-    start_date = st.sidebar.date_input(
+    start_date = streamlit.sidebar.date_input(
         "Start Date",
         value=start_date_initial_value,
         min_value=minimum_date,
         max_value=maximum_date)
-    end_date = st.sidebar.date_input(
+    end_date = streamlit.sidebar.date_input(
         "End Date",
         value=maximum_date,
         min_value=minimum_date,
@@ -285,9 +278,13 @@ def format_income_table(dataframe: pd.DataFrame, column_names=(
 # Fetch the data from Upbank Client as a csv then read into a dataframe
 @st.cache_data
 def fetch_transaction_data(
-    start_date=pd.Timestamp.today() - pd.DateOffset(months=1),
-    end_date=pd.Timestamp.today() + pd.DateOffset(days=1)
-):
+    start_date: pd.Timestamp | None = None,
+    end_date: pd.Timestamp | None = None
+) -> pd.DataFrame:
+    if start_date is None:
+        start_date = pd.Timestamp.today() - pd.DateOffset(months=1)
+    if end_date is None:
+        end_date = pd.Timestamp.today() + pd.DateOffset(days=1)
     csv_endpoint = "/api/v1/transactions/csv"
     params = {
         "startDate": f"{start_date.strftime('%Y-%m-%d')}T00:00:00.000Z",
@@ -317,7 +314,7 @@ def fetch_transaction_data(
         return pd.DataFrame()
 
 
-def clean_transaction_data(transaction_data: pd.DataFrame):
+def clean_transaction_data(transaction_data: pd.DataFrame) -> pd.DataFrame:
     clean = transaction_data.rename(columns={
         "Category": "Upbank Category",
         "empty": "Quantity",
@@ -352,8 +349,8 @@ def save_data(df: pd.DataFrame, file_path: str, sheet_name: str):
         )
 
 
-def find_index_in_list(list: List[str], search_value: str) -> int:
-    for i, val in enumerate(list):
+def find_index_in_list(existing_list: List[str], search_value: str) -> int:
+    for i, val in enumerate(existing_list):
         if val == search_value:
             return i
     return 0
@@ -371,4 +368,4 @@ def display_image(selected_receipt: Receipt):
 
 def refresh_all_the_data():
     fetch_transaction_data.clear()
-    spending.SpendingData().fetch_spending_data.clear()
+    SpendingData(DataManipulator()).fetch_spending_data.clear()
