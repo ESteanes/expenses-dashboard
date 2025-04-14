@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from enum import Enum
 from io import BytesIO
 from typing import List
+from filelock import FileLock, Timeout
 
 import pandas as pd
 import requests
@@ -82,6 +83,9 @@ FILE_CONFIGS = {
 
 class DataManipulator:
     def __init__(self):
+        self.lock_dir = "locks"
+        self.LOCK_TIMEOUT = 10
+        self.LOCK_PATH = None
         self.receipt_share_id = os.getenv("NEXTCLOUD_RECEIPT_SHARE_ID")
         self.receipt_share_password = os.getenv("NEXTCLOUD_RECEIPT_SHARE_PASSWORD")
         self.spending_share_id = os.getenv("NEXTCLOUD_SPENDING_SHARE_ID")
@@ -139,11 +143,19 @@ class DataManipulator:
         raise ValueError("Invalid datasource specified")
 
     def save_backing_table(self, file_type: FileType, table_name: TableName, dataframe: DataFrame = None):
-        if self.datasource == DataSource.NEXTCLOUD:
-            return self.save_table_to_nextcloud(file_type=file_type, table_name=table_name, dataframe_to_save=dataframe)
-        if self.datasource == DataSource.EXCEL:
-            return self.save_table_to_excel(file_type=file_type, table_name=table_name, df=dataframe)
-        raise ValueError("Invalid datasource specified")
+        lock_path = self.get_lock_path(file_type, table_name)
+        lock = FileLock(lock_path, timeout=10)
+        try:
+            with lock:
+                if self.datasource == DataSource.NEXTCLOUD:
+                    return self.save_table_to_nextcloud(file_type=file_type, table_name=table_name,
+                                                        dataframe_to_save=dataframe)
+                if self.datasource == DataSource.EXCEL:
+                    return self.save_table_to_excel(file_type=file_type, table_name=table_name, df=dataframe)
+                raise ValueError("Invalid datasource specified")
+        except Timeout:
+            raise ValueError(f"Another user is currently saving {file_type}:{table_name}. Try again soon.")
+
 
 
     def fetch_income_table(self):
@@ -199,6 +211,11 @@ class DataManipulator:
             datetime_format="YYYY-MM-DD"
         ) as writer:
             df.to_excel(writer, sheet_name=table_name.value)
+
+    def get_lock_path(self, file_type: FileType, table_name: TableName) -> str:
+        # Clean or hash the file_type and table_name if needed
+        os.makedirs(self.lock_dir, exist_ok=True)
+        return os.path.join(self.lock_dir, f"{file_type.value}_{table_name.value}.lock")
 
 
 def remove_unnamed_columns(df):
