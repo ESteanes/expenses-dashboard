@@ -67,11 +67,9 @@ class SpendingData:
         return self
 
     def save_spending(self):
-        # save_data(self.spending, SPENDING_PATH, SPENDING_SHEET_NAME)
         self.data_manipulator.save_backing_table(FileType.SPENDING, TableName.SPENDING, self.spending)
 
     def save_location(self):
-        # save_data(self.location, SPENDING_PATH, LOCATION)
         self.data_manipulator.save_backing_table(FileType.SPENDING, TableName.LOCATION, self.location)
 
     def save_hierarchy(self) -> None:
@@ -80,15 +78,12 @@ class SpendingData:
         self.save_base()
 
     def save_top(self) -> None:
-        # save_data(self.top_table, SPENDING_PATH, TOP_TABLE)
         self.data_manipulator.save_backing_table(FileType.SPENDING, TableName.TOP, self.top_table)
 
     def save_middle(self):
-        # save_data(self.middle_table, SPENDING_PATH, MIDDLE_TABLE)
         self.data_manipulator.save_backing_table(FileType.SPENDING, TableName.MIDDLE, self.middle_table)
 
     def save_base(self):
-        # save_data(self.base_table, SPENDING_PATH, BASE_TABLE)
         self.data_manipulator.save_backing_table(FileType.SPENDING, TableName.BASE, self.base_table)
 
     @st.cache_data
@@ -99,14 +94,5 @@ class SpendingData:
         _self.location=(remove_unnamed_columns(fetched_data['Location']))
         _self.base_table=(remove_unnamed_columns(fetched_data['Base Table']))
         _self.middle_table=(remove_unnamed_columns(fetched_data['Middle Table']))
-        _self.top_table=(remove_unnamed_columns(fetched_data['Top_Table']))    # spending_data = pd.read_excel(
-        #     SPENDING_PATH,
-        #     sheet_name=[SPENDING_SHEET_NAME, TOP_TABLE, MIDDLE_TABLE, BASE_TABLE, LOCATION]
-        #
-        # return SpendingData(DataManipulator(),
-        #                     spending=(remove_unnamed_columns(spending_data['Spending'])),
-        #                     location=(remove_unnamed_columns(spending_data['Location'])),
-        #                     base_table=(remove_unnamed_columns(spending_data['Base Table'])),
-        #                     middle_table=(remove_unnamed_columns(spending_data['Middle Table'])),
-        #                     top_table=(remove_unnamed_columns(spending_data['Top_Table'])))
+        _self.top_table=(remove_unnamed_columns(fetched_data['Top_Table']))
         return _self
