@@ -84,9 +84,9 @@ class Receipt:
             self.rotate_image(90)
 
     def save_image(self, image_date: pd.Timestamp, existing_file_name: Optional[str | float]) -> str:
-        if self.datasource == DataSource.EXCEL or self.datasource == DataSource.NEXTCLOUD:
+        if self.datasource.value == DataSource.EXCEL.value:
             return self.save_image_excel(image_date, existing_file_name)
-        raise ValueError(f"Invalid data source {self.datasource}")
+        raise ValueError(f"Invalid data source value {self.datasource.value}")
 
     def save_image_excel(self, image_date: pd.Timestamp, existing_file_name: Optional[str | float]) -> str:
         if self.data is None:
