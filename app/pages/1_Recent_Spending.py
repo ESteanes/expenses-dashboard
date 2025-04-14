@@ -3,8 +3,9 @@ import pandas as pd
 import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 
-import classes.spending as spending
-from classes.spending import SpendingData
+import app.classes.spending as spending
+from app.classes.datamanipulator import DataManipulator
+from app.classes.spending import SpendingData
 
 
 def render_recent_spending(
@@ -68,4 +69,4 @@ def render_recent_spending(
     ), use_container_width=True)
 
 
-render_recent_spending(st, spending.SpendingData().fetch_spending_data())
+render_recent_spending(st, spending.SpendingData(DataManipulator()).fetch_spending_data())

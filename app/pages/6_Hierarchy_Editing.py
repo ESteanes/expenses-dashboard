@@ -1,10 +1,11 @@
 import streamlit as st
 
-import classes.spending as spending
+import app.classes.spending as spending
+from app.classes.datamanipulator import DataManipulator
 
 st.set_page_config(layout="wide")
 
-spending_data = spending.SpendingData().fetch_spending_data()
+spending_data = spending.SpendingData(DataManipulator()).fetch_spending_data()
 
 col1, col2, col3 = st.columns(3)
 sub_categories = spending_data.middle_table['Sub Category'].unique()

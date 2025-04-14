@@ -4,8 +4,12 @@ import plotly.express as px
 import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 
-import utils
-from utils import IncomeEntry, YES_NO_OPTIONS
+import app.utils
+from app import utils
+from app.utils import IncomeEntry, YES_NO_OPTIONS
+from app.classes.datamanipulator import DataManipulator, FileType, TableName
+
+import app.classes.datamanipulator
 
 
 def variable_income_aggregation(
@@ -29,12 +33,12 @@ def variable_income_aggregation(
         income_data["Period"] = income_data["Date"].dt.to_period("Y").apply(lambda r: r.start_time)
 
     # Aggregate gross income
-    gross_income_by_period = (
-        income_data.groupby("Period")["Gross Income"]
-        .sum()
-        .reset_index()
-        .sort_values("Period")
-    )
+    # gross_income_by_period = (
+    #     income_data.groupby("Period")["Gross Income"]
+    #     .sum()
+    #     .reset_index()
+    #     .sort_values("Period")
+    # )
 
     # Aggregate breakdown by category (if available)
     if "Description" in income_data.columns:
@@ -74,7 +78,7 @@ def add_income(existing_income: pd.DataFrame):
     # Form fields
     if prior_income_entry.selection.rows:
         # Get the data for the selected row
-        selected_row_data = IncomeEntry.from_Series(
+        selected_row_data = IncomeEntry.from_series(
             existing_income.iloc[prior_income_entry.selection.rows[0]])
         taxable_value = selected_row_data.taxable
         gross_income_value = selected_row_data.gross_income
@@ -136,10 +140,8 @@ def add_income(existing_income: pd.DataFrame):
             [existing_income, income_entry.to_dataframe()],
             ignore_index=True
         )[utils.INCOME_DATA_SCHEMA]
-        utils.save_data(
-            edited_df,
-            utils.INCOME_PATH,
-            utils.INCOME_SHEET_NAME)
+        DataManipulator().save_backing_table(app.classes.datamanipulator.INCOME_FILE,
+                                             app.classes.datamanipulator.INCOME_SHEET_NAME, edited_df)
         utils.fetch_income_deduction_data.clear()
         st.rerun()
 
@@ -154,10 +156,8 @@ def remove_income(existing_income: pd.DataFrame):
         selection_mode="single-row"
     )
     if st.button("Remove"):
-        utils.save_data(
-            existing_income.drop([prior_income_entry.selection.rows[0]]),
-            utils.INCOME_PATH,
-            utils.INCOME_SHEET_NAME)
+        DataManipulator().save_backing_table(FileType.INCOME, TableName.INCOME,
+                                             existing_income.drop([prior_income_entry.selection.rows[0]]))
         utils.fetch_income_deduction_data.clear()
         st.rerun()
 
@@ -204,15 +204,15 @@ def render_income(
         if selected_descriptions else [True] * len(df)]
     )
 
-    filtered_deduction = (
-        deductions_data
-        .loc[lambda df: df.Date > pd.to_datetime(start_date)]
-        .loc[lambda df: df.Date < pd.to_datetime(end_date)]
-    )
+    # filtered_deduction = (
+    #     deductions_data
+    #     .loc[lambda df: df.Date > pd.to_datetime(start_date)]
+    #     .loc[lambda df: df.Date < pd.to_datetime(end_date)]
+    # )
     # Filter historical and projected data
     today = pd.Timestamp.today()
     historical_data = income_data[income_data["Date"] <= today]
-    future_data = income_data[income_data["Date"] > today]
+    # future_data = income_data[income_data["Date"] > today]
 
     # Display the data table
     income.subheader("Income Data")

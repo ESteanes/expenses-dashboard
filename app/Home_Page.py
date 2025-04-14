@@ -1,7 +1,11 @@
+import os
+
 import streamlit as st
 import pandas as pd
-import classes.spending as spending
-import utils
+
+from app.classes.datamanipulator import DataManipulator, DataSource, FILE_CONFIGS, FileType
+import app.classes.spending as spending
+import app.utils as utils
 
 st.set_page_config(
     page_title="Manage Expenses",
@@ -10,8 +14,13 @@ st.set_page_config(
 if "last_refresh" not in st.session_state:
         st.session_state.last_refresh = None
 
+mydf = pd.read_excel(
+            FILE_CONFIGS.get(FileType.SPENDING).path,
+            sheet_name=[x.value for x in FILE_CONFIGS.get(FileType.SPENDING).tables])
+
 income, deductions = utils.fetch_income_deduction_data()
-spending_data = spending.SpendingData().fetch_spending_data()
+data_manipulator = DataManipulator()
+spending_data = spending.SpendingData(data_manipulator).fetch_spending_data()
 st.session_state.last_refresh = pd.Timestamp.now()
 transaction_data = utils.fetch_transaction_data()
 uncategorised_transactions = transaction_data[
@@ -45,10 +54,16 @@ c.metric("Rows in middle table", len(spending_data.middle_table))
 d.metric("Rows in base table", len(spending_data.base_table))
 
 st.divider()
+st.write(f"Data source: {data_manipulator.datasource.value}")
+if data_manipulator.datasource == DataSource.EXCEL:
+    st.write(f"Income path: `{FILE_CONFIGS.get(FileType.INCOME).path}`")
+    st.write(f"Spending path: `{FILE_CONFIGS.get(FileType.SPENDING).path}`")
 
-st.write(f"Income path: `{utils.INCOME_PATH}`")
-st.write(f"Spending path: `{spending.SPENDING_PATH}`")
+if data_manipulator.datasource == DataSource.NEXTCLOUD:
+    st.write(f"Nextcloud Income ShareId: {data_manipulator.income_share_id}")
+    st.write(f"Nextcloud Spending ShareId: {data_manipulator.spending_share_id}")
 
-
+st.divider()
+st.write(f"Fetching up bank transactions from: {utils.EXPENSE_MANAGER_URL}")
 if st.button("Refresh Data", on_click=utils.refresh_all_the_data):
     st.session_state.last_refresh = pd.Timestamp.now()
