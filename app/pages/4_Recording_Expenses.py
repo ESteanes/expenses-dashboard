@@ -9,7 +9,7 @@ from app.classes.receipt import Receipt
 from app.classes.spending import SpendingData
 
 import app.classes.datamanipulator
-from app.classes.datamanipulator import DataManipulator, FileType, TableName
+from app.classes.datamanipulator import DataManipulator, FileType, TableName, DataSource
 
 
 def add_item():
@@ -97,10 +97,9 @@ def get_info(spending_data: pd.DataFrame):
 def save_edited_values(edited_df: pd.DataFrame):
     # utils.save_data(edited_df, app.classes.datamanipulator.SPENDING_PATH,
     #                 app.classes.datamanipulator.SPENDING_SHEET_NAME)
-    DataManipulator().save_backing_table(
-        FileType.SPENDING,
-        TableName.SPENDING,
-        edited_df)
+    spending_data = spending.SpendingData(DataManipulator())
+    spending_data.spending = edited_df
+    spending_data.save_spending()
     utils.refresh_all_the_data()
 
 
@@ -237,9 +236,10 @@ def edit_expenses(categorised_transactions: pd.DataFrame):
 
 
 def save_reset(edited_df):
-    DataManipulator().save_backing_table(app.classes.datamanipulator.SPENDING_FILE,
-                                         app.classes.datamanipulator.SPENDING_SHEET_NAME, edited_df)
-    spending.SpendingData(DataManipulator()).fetch_spending_data.clear()
+    spending_data = spending.SpendingData(DataManipulator())
+    spending_data.spending = edited_df
+    spending_data.save_spending()
+    spending_data.fetch_spending_data.clear()
     st.session_state.uploaded_file = None
     st.session_state.receipt = None
     st.rerun()
