@@ -8,6 +8,7 @@ import pandas as pd
 import requests
 import streamlit as st
 from pandas.core.interchange.dataframe_protocol import DataFrame
+from pdf2image import convert_from_bytes
 from streamlit.delta_generator import DeltaGenerator
 
 from app.classes.datamanipulator import DataManipulator, remove_unnamed_columns
@@ -357,6 +358,9 @@ def find_index_in_list(existing_list: List[str], search_value: str) -> int:
 
 def display_image(selected_receipt: Receipt):
     if selected_receipt.type == Receipt.PDF_TYPE:
+        if selected_receipt.data is not None:
+            st.image(convert_from_bytes(selected_receipt.data))
+            return
         for img in selected_receipt.read_from_path().read_image():
             st.image(img, use_container_width=True)
         return
