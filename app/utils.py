@@ -7,7 +7,6 @@ import altair as alt
 import pandas as pd
 import requests
 import streamlit as st
-from pandas.core.interchange.dataframe_protocol import DataFrame
 from pdf2image import convert_from_bytes
 from streamlit.delta_generator import DeltaGenerator
 
@@ -174,7 +173,6 @@ def calculate_financial_year(date):
         return f"FY {year - 1}/{year}"
 
 
-
 @st.cache_data
 def fetch_income_deduction_data():
     income_sheets = DataManipulator().fetch_income_table()
@@ -203,10 +201,10 @@ def fetch_income_deduction_data():
 
 
 def date_sidebar(
-    streamlit: DeltaGenerator,
-    df: pd.DataFrame,
-    date_key: str,
-    start_at_minimum=False
+        streamlit: DeltaGenerator,
+        df: pd.DataFrame,
+        date_key: str,
+        start_at_minimum=False
 ):
     minimum_date = df[date_key].min()
     maximum_date = df[date_key].max()
@@ -265,11 +263,11 @@ def plot_bar_chart(dataframe, x_column, y_column, title, max_items=20):
 
 
 def format_income_table(dataframe: pd.DataFrame, column_names=(
-    "Gross Income",
-    "Salary Sacrifice",
-    "Taxable Income",
-    "Income",
-    "Tax")):
+        "Gross Income",
+        "Salary Sacrifice",
+        "Taxable Income",
+        "Income",
+        "Tax")):
     dataframe_formatted = dataframe.style.format(
         {columnname: '${:,.2f}' for columnname in column_names}
     )
@@ -279,8 +277,8 @@ def format_income_table(dataframe: pd.DataFrame, column_names=(
 # Fetch the data from Upbank Client as a csv then read into a dataframe
 @st.cache_data
 def fetch_transaction_data(
-    start_date: pd.Timestamp | None = None,
-    end_date: pd.Timestamp | None = None
+        start_date: pd.Timestamp | None = None,
+        end_date: pd.Timestamp | None = None
 ) -> pd.DataFrame:
     if start_date is None:
         start_date = pd.Timestamp.today() - pd.DateOffset(months=1)
@@ -294,7 +292,8 @@ def fetch_transaction_data(
         "accountId": "a90b55ad-1bcb-4e75-b407-0e0e1e5c8a6d",
         # We need EFTPOS Deposit for BeemIt transactions as they are processed using EFTPOS
         # Direct credit is how some refunds appear
-        "transactionTypes": ['Payment', 'Purchase', 'Refund', 'EFTPOS Deposit', 'Direct Credit']
+        "transactionTypes": ['Payment', 'Purchase', 'Refund', 'EFTPOS Deposit', 'Direct Credit',
+                             'International ATM Cash Out', 'International Purchase']
     }
     try:
         # Fetch the CSV data
@@ -337,12 +336,12 @@ def clean_transaction_data(transaction_data: pd.DataFrame) -> pd.DataFrame:
 
 def save_data(df: pd.DataFrame, file_path: str, sheet_name: str):
     with pd.ExcelWriter(
-        file_path,
-        mode='a',
-        if_sheet_exists='replace',
-        engine='openpyxl',
-        date_format="YYYY-MM-DD",
-        datetime_format="YYYY-MM-DD"
+            file_path,
+            mode='a',
+            if_sheet_exists='replace',
+            engine='openpyxl',
+            date_format="YYYY-MM-DD",
+            datetime_format="YYYY-MM-DD"
     ) as writer:
         df.to_excel(
             writer,
@@ -355,6 +354,7 @@ def find_index_in_list(existing_list: List[str], search_value: str) -> int:
         if val == search_value:
             return i
     return 0
+
 
 def display_image(selected_receipt: Receipt):
     if selected_receipt.type == Receipt.PDF_TYPE:
@@ -369,6 +369,7 @@ def display_image(selected_receipt: Receipt):
         return
     for img in st.session_state.receipt.read_image():
         st.image(img, use_container_width=True)
+
 
 def refresh_all_the_data():
     fetch_transaction_data.clear()
