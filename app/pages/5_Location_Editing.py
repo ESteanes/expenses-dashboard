@@ -5,20 +5,20 @@ import streamlit as st
 from geopy.geocoders import Nominatim
 from streamlit.delta_generator import DeltaGenerator
 
-from app.classes.spending import SpendingData
 from app.classes.datamanipulator import DataManipulator
+from app.classes.spending import SpendingData
 
 # Initialize geolocator
 geolocator = Nominatim(user_agent="streamlit-location-finder")
 
 
 def add_new_coordinates(
-    location: str,
-    new_values: List[Dict],
-    geolocator_tool: Nominatim,
-    ui: DeltaGenerator,
-    existing_lat=0.0,
-    existing_long=0.0):
+        location: str,
+        new_values: List[Dict],
+        geolocator_tool: Nominatim,
+        ui: DeltaGenerator,
+        existing_lat=0.0,
+        existing_long=0.0):
     ui.subheader(f"Add Coordinates for: {location}")
     # Free text input for geocoding (but we save the coordinates to `location`)
     search_location = ui.text_input(f"Search Location for {location}", location)
@@ -55,11 +55,11 @@ def add_new_coordinates(
 
 
 def modify_existing_coordinates(
-    spending_data: SpendingData,
-    location_to_modify: pd.DataFrame,
-    index_modifying: int,
-    geolocator_tool: Nominatim,
-    ui: DeltaGenerator):
+        spending_data: SpendingData,
+        location_to_modify: pd.DataFrame,
+        index_modifying: int,
+        geolocator_tool: Nominatim,
+        ui: DeltaGenerator):
     location = location_to_modify['Location'][index_modifying]
     ui.subheader(f"Add Coordinates for: {location}")
     # Free text input for geocoding (but we save the coordinates to `location`)
@@ -107,6 +107,8 @@ def clear_session_state():
     st.session_state.longitude = None
 
 
+st.set_page_config(layout="wide")
+
 # Load data
 spending_data = SpendingData(DataManipulator()).fetch_spending_data()
 # Find unique locations from spending data that are missing in location_df
@@ -114,7 +116,6 @@ existing_locations = set(spending_data.location['Location'])
 spending_locations = set(spending_data.spending['Location'].dropna())
 missing_locations = spending_locations - existing_locations
 
-st.set_page_config(layout="wide")
 st.title("Add Missing Locations with Coordinates")
 
 new_location_entries = []

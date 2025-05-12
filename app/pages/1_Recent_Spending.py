@@ -9,8 +9,8 @@ from app.classes.spending import SpendingData
 
 
 def render_recent_spending(
-    recent: DeltaGenerator,
-    spending_data: SpendingData):
+        recent: DeltaGenerator,
+        spending_data: SpendingData):
     filtered_dataframe = spending_data.combine().combined.loc[
         lambda df: df.Date > pd.Timestamp.now() - pd.DateOffset(months=1)]
     recent.header("Past 30 Days Expenditures")

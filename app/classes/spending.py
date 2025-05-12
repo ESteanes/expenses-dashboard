@@ -21,12 +21,12 @@ SPENDING_DATA_SCHEMA = [
 
 def save_data(df: pd.DataFrame, file_path: str, sheet_name: str):
     with pd.ExcelWriter(
-        file_path,
-        mode='a',
-        if_sheet_exists='replace',
-        engine='openpyxl',
-        date_format="YYYY-MM-DD",
-        datetime_format="YYYY-MM-DD"
+            file_path,
+            mode='a',
+            if_sheet_exists='replace',
+            engine='openpyxl',
+            date_format="YYYY-MM-DD",
+            datetime_format="YYYY-MM-DD"
     ) as writer:
         df.to_excel(
             writer,
@@ -91,8 +91,8 @@ class SpendingData:
         # Data ingest and basic prep hello
         fetched_data = _self.data_manipulator.fetch_backing_table(FileType.SPENDING)
         _self.spending = remove_unnamed_columns(fetched_data['Spending'])
-        _self.location=(remove_unnamed_columns(fetched_data['Location']))
-        _self.base_table=(remove_unnamed_columns(fetched_data['Base Table']))
-        _self.middle_table=(remove_unnamed_columns(fetched_data['Middle Table']))
-        _self.top_table=(remove_unnamed_columns(fetched_data['Top_Table']))
+        _self.location = (remove_unnamed_columns(fetched_data['Location']))
+        _self.base_table = (remove_unnamed_columns(fetched_data['Base Table']))
+        _self.middle_table = (remove_unnamed_columns(fetched_data['Middle Table']))
+        _self.top_table = (remove_unnamed_columns(fetched_data['Top_Table']))
         return _self

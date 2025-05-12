@@ -4,17 +4,16 @@ import plotly.express as px
 import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 
+import app.classes.datamanipulator
 import app.utils
 from app import utils
-from app.utils import IncomeEntry, YES_NO_OPTIONS
 from app.classes.datamanipulator import DataManipulator, FileType, TableName
-
-import app.classes.datamanipulator
+from app.utils import IncomeEntry, YES_NO_OPTIONS
 
 
 def variable_income_aggregation(
-    income: DeltaGenerator,
-    income_data: pd.DataFrame):
+        income: DeltaGenerator,
+        income_data: pd.DataFrame):
     # Gross Income Over Time
     income.subheader("Gross Income Over Time with Breakdown")
     time_aggregation = income.selectbox(
@@ -163,9 +162,9 @@ def remove_income(existing_income: pd.DataFrame):
 
 
 def render_income(
-    income: DeltaGenerator,
-    income_data: pd.DataFrame,
-    deductions_data: pd.DataFrame):
+        income: DeltaGenerator,
+        income_data: pd.DataFrame,
+        deductions_data: pd.DataFrame):
     income.sidebar.button(
         "Refresh Data",
         on_click=utils.fetch_income_deduction_data.clear)

@@ -5,11 +5,9 @@ from streamlit.delta_generator import DeltaGenerator
 
 import app.classes.spending as spending
 import app.utils as utils
+from app.classes.datamanipulator import DataManipulator
 from app.classes.receipt import Receipt
 from app.classes.spending import SpendingData
-
-import app.classes.datamanipulator
-from app.classes.datamanipulator import DataManipulator, FileType, TableName, DataSource
 
 
 def add_item():
@@ -17,6 +15,7 @@ def add_item():
     if new_item and new_item not in st.session_state.additional_items:
         st.session_state.additional_items.append(new_item)  # Add item to the list
         st.session_state.new_item_input = ""  # Clear the input field
+
 
 def get_info(spending_data: pd.DataFrame):
     column_config = {
@@ -160,7 +159,6 @@ def upload_display_image() -> None:
 
     if st.session_state.receipt:
         utils.display_image(st.session_state.receipt)
-
 
 
 @st.dialog("Delete expenses", width="large")

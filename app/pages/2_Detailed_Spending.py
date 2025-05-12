@@ -11,8 +11,8 @@ from app.classes.spending import SpendingData
 
 
 def render_detailed_spending(
-    detailed: DeltaGenerator,
-    spending_data: SpendingData):
+        detailed: DeltaGenerator,
+        spending_data: SpendingData):
     filtered_dataframe = spending_data.combine().combined
     # Display some filters - date, tag etc.
     tags = filtered_dataframe["Tag"].unique()
@@ -92,7 +92,7 @@ def render_detailed_spending(
     column_config = {
         "Date": st.column_config.DateColumn("Date", format="ddd DD-MM-YY"),
         "Details": st.column_config.TextColumn("Details", width="medium"),
-        "Has Receipt": st.column_config.CheckboxColumn("Receipt",width="small",disabled=True)
+        "Has Receipt": st.column_config.CheckboxColumn("Receipt", width="small", disabled=True)
     }
     column_order = ["Date", "Item", "Cost", "Shop", "Location", "Tag", "Details", "Sub Category", "Has Receipt"]
     transaction = detailed.dataframe(filtered_dataframe,

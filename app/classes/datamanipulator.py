@@ -3,10 +3,10 @@ from dataclasses import dataclass
 from enum import Enum
 from io import BytesIO
 from typing import List
-from filelock import FileLock, Timeout
 
 import pandas as pd
 import requests
+from filelock import FileLock, Timeout
 from pandas import DataFrame
 from requests.auth import HTTPBasicAuth
 
@@ -24,6 +24,7 @@ FILENAME_SHEETS = {
     SPENDING_FILE: [SPENDING_SHEET_NAME, TOP_TABLE, MIDDLE_TABLE, BASE_TABLE, LOCATION]
 }
 VALID_FILENAMES = [INCOME_FILE, SPENDING_FILE]
+
 
 class FileType(Enum):
     SPENDING = "SPENDING"
@@ -55,6 +56,7 @@ class FileConfig:
     tables: List[TableName]
     path: str
 
+
 # Define all supported file configurations
 FILE_CONFIGS = {
     FileType.INCOME: FileConfig(
@@ -81,6 +83,7 @@ FILE_CONFIGS = {
     )
 }
 
+
 class DataManipulator:
     def __init__(self):
         self.lock_dir = "locks"
@@ -102,7 +105,6 @@ class DataManipulator:
             FILE_CONFIGS.get(file_type).path,
             sheet_name=[x.value for x in FILE_CONFIGS.get(file_type).tables])
 
-
     def fetch_data_from_nextcloud(self, file_type: FileType) -> dict[str, DataFrame]:
         share_id, share_password = self.get_nextcloud_share_id_password(file_type)
         response = requests.request(
@@ -116,7 +118,7 @@ class DataManipulator:
         )
         if not response == "200":
             raise LookupError("Unable to fetch data from nextcloud")
-        return pd.read_excel(BytesIO(response.content)) # Fetching all tables from Excel
+        return pd.read_excel(BytesIO(response.content))  # Fetching all tables from Excel
 
     def get_nextcloud_share_id_password(self, file_type: FileType):
         share_id = self.spending_share_id
@@ -135,7 +137,7 @@ class DataManipulator:
             raise ValueError("No nextcloud url specified")
         return share_id, share_password
 
-    def fetch_backing_table(self, file_type:FileType) -> dict[str, DataFrame]:
+    def fetch_backing_table(self, file_type: FileType) -> dict[str, DataFrame]:
         if self.datasource == DataSource.NEXTCLOUD:
             return self.fetch_data_from_nextcloud(file_type=file_type)
         if self.datasource == DataSource.EXCEL:
@@ -156,8 +158,6 @@ class DataManipulator:
         except Timeout:
             raise ValueError(f"Another user is currently saving {file_type}:{table_name}. Try again soon.")
 
-
-
     def fetch_income_table(self):
         return self.fetch_backing_table(FileType.INCOME)
 
@@ -167,7 +167,8 @@ class DataManipulator:
     def save_table_to_nextcloud(self, file_type: FileType, table_name: TableName, dataframe_to_save: DataFrame = None):
         existing_dataframes = self.fetch_data_from_nextcloud(file_type)
         if table_name.value not in existing_dataframes.keys():
-            raise LookupError(f"desired table_name: {table_name} does not exist within file: {existing_dataframes.keys()}")
+            raise LookupError(
+                f"desired table_name: {table_name} does not exist within file: {existing_dataframes.keys()}")
         existing_dataframes[table_name.value] = dataframe_to_save
 
         output = BytesIO()
@@ -190,8 +191,6 @@ class DataManipulator:
         if not response == "200":
             raise LookupError("Unable to fetch data from nextcloud")
 
-
-
     @staticmethod
     def save_table_to_excel(file_type: FileType, table_name: TableName, df: DataFrame = None):
         file_config = FILE_CONFIGS.get(file_type)
@@ -203,12 +202,12 @@ class DataManipulator:
         if table_name not in file_config.tables:
             raise ValueError(f"Invalid table name ({table_name}) supplied for the corresponding filename ({file_type})")
         with pd.ExcelWriter(
-            file_path,
-            mode='a',
-            if_sheet_exists='replace',
-            engine='openpyxl',
-            date_format="YYYY-MM-DD",
-            datetime_format="YYYY-MM-DD"
+                file_path,
+                mode='a',
+                if_sheet_exists='replace',
+                engine='openpyxl',
+                date_format="YYYY-MM-DD",
+                datetime_format="YYYY-MM-DD"
         ) as writer:
             df.to_excel(writer, sheet_name=table_name.value)
 
