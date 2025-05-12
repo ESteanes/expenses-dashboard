@@ -1,22 +1,20 @@
-import os
-
-import streamlit as st
 import pandas as pd
+import streamlit as st
 
-from app.classes.datamanipulator import DataManipulator, DataSource, FILE_CONFIGS, FileType
 import app.classes.spending as spending
 import app.utils as utils
+from app.classes.datamanipulator import DataManipulator, DataSource, FILE_CONFIGS, FileType
 
 st.set_page_config(
     page_title="Manage Expenses",
     page_icon=":money:"
 )
 if "last_refresh" not in st.session_state:
-        st.session_state.last_refresh = None
+    st.session_state.last_refresh = None
 
 mydf = pd.read_excel(
-            FILE_CONFIGS.get(FileType.SPENDING).path,
-            sheet_name=[x.value for x in FILE_CONFIGS.get(FileType.SPENDING).tables])
+    FILE_CONFIGS.get(FileType.SPENDING).path,
+    sheet_name=[x.value for x in FILE_CONFIGS.get(FileType.SPENDING).tables])
 
 income, deductions = utils.fetch_income_deduction_data()
 data_manipulator = DataManipulator()
@@ -24,26 +22,26 @@ spending_data = spending.SpendingData(data_manipulator).fetch_spending_data()
 st.session_state.last_refresh = pd.Timestamp.now()
 transaction_data = utils.fetch_transaction_data()
 uncategorised_transactions = transaction_data[
-        ~transaction_data['transactionId'].isin(spending_data.spending['transactionId'])
-    ]
+    ~transaction_data['transactionId'].isin(spending_data.spending['transactionId'])
+]
 
 st.metric(
     "Last Refresh",
-    f"{st.session_state.last_refresh.strftime('%Y/%m/%d %H:%M:%S')} - {int(pd.Timedelta(pd.Timestamp.now() - st.session_state.last_refresh).total_seconds()/(60*60))} hours ago")
+    f"{st.session_state.last_refresh.strftime('%Y/%m/%d %H:%M:%S')} - {int(pd.Timedelta(pd.Timestamp.now() - st.session_state.last_refresh).total_seconds() / (60 * 60))} hours ago")
 col1, col2, col3 = st.columns(3, border=True)
 col1.metric("No. uncategorised transactions", len(uncategorised_transactions))
 col1.metric("No. transactions from Up Bank", len(transaction_data))
 
 col2.metric(
     "Latest Transaction",
-    f"{int(pd.Timedelta(pd.Timestamp.now() - spending_data.spending['Date'].max()).total_seconds()/(60*60*24))} days since",
-    )
+    f"{int(pd.Timedelta(pd.Timestamp.now() - spending_data.spending['Date'].max()).total_seconds() / (60 * 60 * 24))} days since",
+)
 col2.metric("No. transactions recorded", len(spending_data.spending))
 
 col3.metric(
-      "Most recent income recorded",
-      income['Date'].max().strftime("%Y/%m/%d")
-    )
+    "Most recent income recorded",
+    income['Date'].max().strftime("%Y/%m/%d")
+)
 col3.metric("No. incomes recorded", len(income))
 
 st.divider()

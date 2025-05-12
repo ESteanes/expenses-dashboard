@@ -32,12 +32,12 @@ class Receipt:
 
     def set_uploaded_file(self, uploaded_file: UploadedFile):
         self.filename = uploaded_file.name
-        self.type = uploaded_file.type 
-        
+        self.type = uploaded_file.type
+
         if self.type == Receipt.PDF_TYPE:
             self.data = uploaded_file.read()
             return
-        
+
         self.data = uploaded_file
         self.image = Image.open(self.data)
         return
@@ -76,11 +76,11 @@ class Receipt:
         return self.image
 
     def rotate_clockwise(self):
-        if not self.type == Receipt.PDF_TYPE: 
+        if not self.type == Receipt.PDF_TYPE:
             self.rotate_image(-90)
 
     def rotate_anti_clockwise(self):
-        if not self.type == Receipt.PDF_TYPE: 
+        if not self.type == Receipt.PDF_TYPE:
             self.rotate_image(90)
 
     def save_image(self, image_date: pd.Timestamp, existing_file_name: Optional[str | float]) -> str:
@@ -141,10 +141,9 @@ class Receipt:
             self.data = f.read()
         return self
 
-
     def get_type(self):
         return self.type
-    
+
     def determine_type_from_filename(self, filename: str) -> str:
         extension = filename.split(".")[-1].lower()
         if extension == "pdf":
