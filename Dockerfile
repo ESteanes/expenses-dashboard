@@ -6,8 +6,9 @@ WORKDIR /app
 
 
 COPY requirements.txt ./
-COPY app/ ./app/
+COPY app/ ./app/cl
 
+RUN pip3 install --upgrade pip setuptools wheel
 RUN pip3 install --no-cache-dir -r requirements.txt
 RUN apt-get update && apt-get -y install poppler-utils && apt-get clean
 

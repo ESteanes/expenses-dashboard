@@ -11,6 +11,7 @@ from pdf2image import convert_from_bytes
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 
 from app.classes.datamanipulator import DataManipulator, DataSource
+from app.classes.spending import SpendingData, SpendingEntry
 
 
 class Receipt:
@@ -65,7 +66,6 @@ class Receipt:
         if self.type != "application/pdf":
             self.image = Image.open(self.path)
             return [self.image]
-
         return convert_from_bytes(self.data)
 
     def rotate_image(self, angle: int) -> Image.Image:
@@ -149,3 +149,7 @@ class Receipt:
         if extension == "pdf":
             return self.PDF_TYPE
         return self.IMAGE_TYPE
+
+    def parse_spending(self) -> List[SpendingEntry]:
+        if self.image == None:
+            raise ValueError("No Image has been loaded")

@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import pandas as pd
 import streamlit as st
 
@@ -96,3 +98,36 @@ class SpendingData:
         _self.middle_table = (remove_unnamed_columns(fetched_data['Middle Table']))
         _self.top_table = (remove_unnamed_columns(fetched_data['Top_Table']))
         return _self
+
+
+@dataclass
+class SpendingEntry:
+    """Represents a spending entry."""
+    item: str
+    cost: float
+    quantity: float
+    measure: str
+    location: str
+    shop: str
+    details: str
+    tag: str
+    date: pd.Timestamp
+    receipt_ref: str
+    receipt: str
+    transaction_id: str
+
+    @classmethod
+    def from_dataframe(cls, row: pd.Series):
+        """Creates a SpendingEntry from a DataFrame row (df.iloc[index])."""
+        cls.item = row["Item"]
+        cls.cost = row["Cost"]
+        cls.quantity = row["Quantity"]
+        cls.measure = row["Measure"]
+        cls.location = row["Location"]
+        cls.shop = row["Shop"]
+        cls.details = row["Details"]
+        cls.tag = row["Tag"]
+        cls.date = pd.to_datetime(row["Date"])
+        cls.receipt_ref = row["Receipt Ref"]
+        cls.receipt = row["Receipt"]
+        cls.transaction_id = row["transactionId"]
