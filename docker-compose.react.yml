@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATASOURCE=${DATASOURCE:-EXCEL}
+      - EXCEL_PATH_SPENDING=/app/data/spending.xlsx
+      - EXCEL_PATH_INCOME=/app/data/income.xlsx
+      - RECEIPT_PATH=/app/data/receipts
+      - EXPENSE_MANAGER_URL=${EXPENSE_MANAGER_URL:-http://host.docker.internal:6123}
+      - PYTHONPATH=/app
+    volumes:
+      - ${EXCEL_PATH_SPENDING:-./data/spending.xlsx}:/app/data/spending.xlsx
+      - ${EXCEL_PATH_INCOME:-./data/income.xlsx}:/app/data/income.xlsx
+      - ${RECEIPT_PATH:-./data/receipts}:/app/data/receipts
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

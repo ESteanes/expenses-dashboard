@@ -173,3 +173,5 @@ cython_debug/
 # PyCharm directory
 /.idea/*
 /locks/SPENDING_Spending.lock
+
+frontend/node_modules
