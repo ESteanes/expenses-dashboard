@@ -1,0 +1,16 @@
+meta {
+  name: Get Receipt Base64
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/receipts/2024-01-15_example.jpg/base64
+  body: none
+  auth: none
+}
+
+docs {
+  Get receipt as base64-encoded images.
+  Useful for displaying in web apps without direct file access.
+}

@@ -1,0 +1,15 @@
+meta {
+  name: Get All Hierarchy
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/hierarchy/all
+  body: none
+  auth: none
+}
+
+docs {
+  Get complete hierarchy data (categories, subcategories, items) in one call
+}

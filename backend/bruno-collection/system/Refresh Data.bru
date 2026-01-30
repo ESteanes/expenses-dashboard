@@ -1,0 +1,15 @@
+meta {
+  name: Refresh Data
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/system/refresh
+  body: none
+  auth: none
+}
+
+docs {
+  Clear all caches and force data refresh from source files
+}

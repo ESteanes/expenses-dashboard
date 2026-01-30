@@ -1,0 +1,19 @@
+meta {
+  name: Get Recent Spending
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/spending/recent
+  body: none
+  auth: none
+}
+
+params:query {
+  days: 30
+}
+
+docs {
+  Get spending summary for recent days
+}

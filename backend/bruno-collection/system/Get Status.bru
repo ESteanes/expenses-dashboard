@@ -1,0 +1,15 @@
+meta {
+  name: Get Status
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/system/status
+  body: none
+  auth: none
+}
+
+docs {
+  Get system status including data source, record counts, and latest transaction dates
+}

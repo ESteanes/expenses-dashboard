@@ -1,0 +1,27 @@
+meta {
+  name: Create Spending
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/spending
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "item": "Coffee",
+    "cost": 4.50,
+    "quantity": 1,
+    "shop": "Local Cafe",
+    "location": "Sydney",
+    "tag": "food",
+    "date": "2024-01-15"
+  }
+}
+
+docs {
+  Create a new spending/expense entry
+}

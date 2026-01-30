@@ -1,0 +1,22 @@
+meta {
+  name: List Spending
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/spending
+  body: none
+  auth: none
+}
+
+params:query {
+  ~start_date: 2024-01-01T00:00:00
+  ~end_date: 2024-12-31T23:59:59
+  ~tags: groceries
+  ~shops: Woolworths
+}
+
+docs {
+  Get list of spending entries with optional filters
+}

@@ -1,0 +1,22 @@
+meta {
+  name: Update Spending
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{baseUrl}}/api/spending/0
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "cost": 5.00,
+    "tag": "updated-tag"
+  }
+}
+
+docs {
+  Update an existing spending entry by index
+}

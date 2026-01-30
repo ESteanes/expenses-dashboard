@@ -1,0 +1,1210 @@
+openapi: 3.0.3
+info:
+  title: Expenses Dashboard API
+  description: API for managing personal expenses, income, receipts, and transaction categorization
+  version: 1.0.0
+  contact:
+    name: Expenses Dashboard
+
+servers:
+  - url: http://localhost:8000
+    description: Local development
+  - url: http://backend:8000
+    description: Docker container
+
+tags:
+  - name: spending
+    description: Expense/spending management
+  - name: income
+    description: Income tracking
+  - name: receipts
+    description: Receipt image management
+  - name: hierarchy
+    description: Category hierarchy management
+  - name: locations
+    description: Location and geocoding
+  - name: transactions
+    description: Bank transaction proxy
+  - name: system
+    description: System status and health
+
+paths:
+  # ============ SPENDING ============
+  /api/spending:
+    get:
+      tags: [spending]
+      summary: List spending entries
+      description: Get list of spending entries with optional filters
+      parameters:
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+          example: "2024-01-01T00:00:00"
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+          example: "2024-12-31T23:59:59"
+        - name: tags
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          example: ["groceries", "transport"]
+        - name: shops
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+        - name: locations
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+        - name: categories
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+        - name: sub_categories
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        '200':
+          description: List of spending entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SpendingEntry'
+
+    post:
+      tags: [spending]
+      summary: Create spending entry
+      description: Create a new spending/expense entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpendingEntryCreate'
+            example:
+              item: "Coffee"
+              cost: 4.50
+              quantity: 1
+              shop: "Local Cafe"
+              location: "Sydney"
+              tag: "food"
+              date: "2024-01-15"
+      responses:
+        '200':
+          description: Created entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpendingEntry'
+        '400':
+          description: Invalid input
+
+  /api/spending/combined:
+    get:
+      tags: [spending]
+      summary: Get combined spending data
+      description: Get spending data with hierarchy and location merged
+      parameters:
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Combined spending data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /api/spending/summary:
+    get:
+      tags: [spending]
+      summary: Get spending summary
+      description: Get spending summary statistics
+      parameters:
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Spending summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpendingSummary'
+
+  /api/spending/recent:
+    get:
+      tags: [spending]
+      summary: Get recent spending
+      description: Get spending summary for recent days
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 365
+            default: 30
+      responses:
+        '200':
+          description: Recent spending summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpendingSummary'
+
+  /api/spending/filters:
+    get:
+      tags: [spending]
+      summary: Get filter options
+      description: Get unique values for filter dropdowns
+      responses:
+        '200':
+          description: Filter options
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tags:
+                    type: array
+                    items:
+                      type: string
+                  shops:
+                    type: array
+                    items:
+                      type: string
+                  locations:
+                    type: array
+                    items:
+                      type: string
+                  categories:
+                    type: array
+                    items:
+                      type: string
+                  sub_categories:
+                    type: array
+                    items:
+                      type: string
+
+  /api/spending/{index}:
+    get:
+      tags: [spending]
+      summary: Get spending entry
+      description: Get a single spending entry by index
+      parameters:
+        - name: index
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Spending entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpendingEntry'
+        '404':
+          description: Entry not found
+
+    put:
+      tags: [spending]
+      summary: Update spending entry
+      description: Update an existing spending entry
+      parameters:
+        - name: index
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpendingEntryUpdate'
+      responses:
+        '200':
+          description: Updated entry
+        '404':
+          description: Entry not found
+
+    delete:
+      tags: [spending]
+      summary: Delete spending entry
+      parameters:
+        - name: index
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Deletion result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '404':
+          description: Entry not found
+
+  # ============ INCOME ============
+  /api/income:
+    get:
+      tags: [income]
+      summary: List income entries
+      parameters:
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: employers
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+        - name: descriptions
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+        - name: financial_years
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          example: ["FY 2023/2024"]
+      responses:
+        '200':
+          description: List of income entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IncomeEntry'
+
+    post:
+      tags: [income]
+      summary: Create income entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IncomeEntryCreate'
+            example:
+              gross_income: 5000
+              tax: 1200
+              income: 3800
+              date: "2024-01-15"
+              employer: "Acme Corp"
+              description: "Salary"
+              taxable: "Taxable"
+      responses:
+        '200':
+          description: Created entry
+        '400':
+          description: Invalid input
+
+  /api/income/summary:
+    get:
+      tags: [income]
+      summary: Get income summary
+      parameters:
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Income summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncomeSummary'
+
+  /api/income/filters:
+    get:
+      tags: [income]
+      summary: Get income filter options
+      responses:
+        '200':
+          description: Filter options
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  employers:
+                    type: array
+                    items:
+                      type: string
+                  descriptions:
+                    type: array
+                    items:
+                      type: string
+                  financial_years:
+                    type: array
+                    items:
+                      type: string
+
+  /api/income/deductions:
+    get:
+      tags: [income]
+      summary: List deductions
+      responses:
+        '200':
+          description: List of deduction entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /api/income/{index}:
+    delete:
+      tags: [income]
+      summary: Delete income entry
+      parameters:
+        - name: index
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Deletion result
+        '404':
+          description: Entry not found
+
+  # ============ RECEIPTS ============
+  /api/receipts:
+    post:
+      tags: [receipts]
+      summary: Upload receipt
+      description: Upload a new receipt image or PDF
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - receipt_date
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Receipt image (jpg, png) or PDF
+                receipt_date:
+                  type: string
+                  format: date
+                  example: "2024-01-15"
+                existing_ref:
+                  type: string
+                  description: Optional existing reference to update
+      responses:
+        '200':
+          description: Upload result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  receipt_ref:
+                    type: string
+                    example: "2024-01-15_abc123.jpg"
+        '400':
+          description: Invalid file
+
+  /api/receipts/{receipt_ref}:
+    get:
+      tags: [receipts]
+      summary: Get receipt
+      description: Get receipt image or PDF
+      parameters:
+        - name: receipt_ref
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "2024-01-15_abc123.jpg"
+      responses:
+        '200':
+          description: Receipt file
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Receipt not found
+
+    delete:
+      tags: [receipts]
+      summary: Delete receipt
+      parameters:
+        - name: receipt_ref
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deletion result
+
+  /api/receipts/{receipt_ref}/base64:
+    get:
+      tags: [receipts]
+      summary: Get receipt as base64
+      description: Get receipt as base64-encoded images (handles PDF conversion)
+      parameters:
+        - name: receipt_ref
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Base64 images
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  images:
+                    type: array
+                    items:
+                      type: string
+                      description: Base64 data URL
+        '404':
+          description: Receipt not found
+
+  /api/receipts/{receipt_ref}/rotate:
+    post:
+      tags: [receipts]
+      summary: Rotate receipt
+      description: Rotate a receipt image by specified angle
+      parameters:
+        - name: receipt_ref
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: angle
+          in: query
+          schema:
+            type: integer
+            default: 90
+          description: Rotation angle in degrees
+      responses:
+        '200':
+          description: Rotation result
+        '400':
+          description: Cannot rotate (e.g., PDF files)
+        '404':
+          description: Receipt not found
+
+  # ============ HIERARCHY ============
+  /api/hierarchy/categories:
+    get:
+      tags: [hierarchy]
+      summary: Get categories
+      description: Get top-level categories (Top Table)
+      responses:
+        '200':
+          description: Categories list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    Category:
+                      type: string
+                    Sub Category:
+                      type: string
+
+    put:
+      tags: [hierarchy]
+      summary: Update categories
+      description: Batch update categories
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HierarchyBatchUpdate'
+      responses:
+        '200':
+          description: Update result
+        '400':
+          description: Invalid input
+
+  /api/hierarchy/subcategories:
+    get:
+      tags: [hierarchy]
+      summary: Get subcategories
+      description: Get sub-categories (Middle Table)
+      responses:
+        '200':
+          description: Subcategories list
+
+    put:
+      tags: [hierarchy]
+      summary: Update subcategories
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HierarchyBatchUpdate'
+      responses:
+        '200':
+          description: Update result
+
+  /api/hierarchy/items:
+    get:
+      tags: [hierarchy]
+      summary: Get items
+      description: Get base items (Base Table)
+      responses:
+        '200':
+          description: Items list
+
+    put:
+      tags: [hierarchy]
+      summary: Update items
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HierarchyBatchUpdate'
+      responses:
+        '200':
+          description: Update result
+
+  /api/hierarchy/all:
+    get:
+      tags: [hierarchy]
+      summary: Get complete hierarchy
+      description: Get all hierarchy data in one call
+      responses:
+        '200':
+          description: Complete hierarchy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  categories:
+                    type: array
+                    items:
+                      type: object
+                  sub_categories:
+                    type: array
+                    items:
+                      type: object
+                  items:
+                    type: array
+                    items:
+                      type: object
+
+  # ============ LOCATIONS ============
+  /api/locations:
+    get:
+      tags: [locations]
+      summary: List locations
+      description: Get all locations with coordinates
+      responses:
+        '200':
+          description: Locations list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Location'
+
+    post:
+      tags: [locations]
+      summary: Create location
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LocationCreate'
+            example:
+              location: "Sydney CBD"
+              latitude: -33.8688
+              longitude: 151.2093
+      responses:
+        '200':
+          description: Created location
+
+  /api/locations/missing:
+    get:
+      tags: [locations]
+      summary: Get missing locations
+      description: Get locations from spending that don't have coordinates
+      responses:
+        '200':
+          description: Missing locations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    location:
+                      type: string
+
+  /api/locations/geocode:
+    post:
+      tags: [locations]
+      summary: Geocode address
+      description: Look up coordinates for an address using Nominatim
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - address
+              properties:
+                address:
+                  type: string
+                  example: "123 Main St, Sydney NSW"
+      responses:
+        '200':
+          description: Geocode result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeocodeResponse'
+        '404':
+          description: Address not found
+
+  /api/locations/{location_name}:
+    put:
+      tags: [locations]
+      summary: Update location
+      description: Update location coordinates
+      parameters:
+        - name: location_name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LocationUpdate'
+      responses:
+        '200':
+          description: Updated location
+        '404':
+          description: Location not found
+
+  # ============ TRANSACTIONS ============
+  /api/transactions:
+    get:
+      tags: [transactions]
+      summary: Get transactions
+      description: Get transactions from Up Bank via Expense Manager proxy
+      parameters:
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: account_id
+          in: query
+          schema:
+            type: string
+            default: "a90b55ad-1bcb-4e75-b407-0e0e1e5c8a6d"
+        - name: transaction_types
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          example: ["Payment", "Purchase"]
+      responses:
+        '200':
+          description: Transactions list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transaction'
+        '502':
+          description: Error fetching from Expense Manager
+
+  /api/transactions/uncategorized:
+    get:
+      tags: [transactions]
+      summary: Get uncategorized transactions
+      description: Get transactions that haven't been categorized yet
+      parameters:
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Uncategorized transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transaction'
+
+  /api/transactions/raw:
+    get:
+      tags: [transactions]
+      summary: Get raw transactions
+      description: Get raw transaction data without transformation (debugging)
+      parameters:
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Raw transactions
+
+  # ============ SYSTEM ============
+  /api/system/status:
+    get:
+      tags: [system]
+      summary: Get system status
+      description: Get system status and data source info
+      responses:
+        '200':
+          description: System status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemStatus'
+
+  /api/system/refresh:
+    post:
+      tags: [system]
+      summary: Refresh data
+      description: Clear all caches and force data refresh
+      responses:
+        '200':
+          description: Refresh result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /api/system/health:
+    get:
+      tags: [system]
+      summary: Health check
+      description: Simple health check endpoint
+      responses:
+        '200':
+          description: Health status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+
+components:
+  schemas:
+    SpendingEntry:
+      type: object
+      properties:
+        Item:
+          type: string
+        Cost:
+          type: number
+        Quantity:
+          type: number
+        Measure:
+          type: string
+        Location:
+          type: string
+        Shop:
+          type: string
+        Details:
+          type: string
+        Tag:
+          type: string
+        Date:
+          type: string
+          format: date
+        Receipt Ref:
+          type: string
+        transactionId:
+          type: string
+        Category:
+          type: string
+        Sub Category:
+          type: string
+        Sub Sub Category:
+          type: string
+
+    SpendingEntryCreate:
+      type: object
+      required:
+        - item
+        - cost
+        - date
+      properties:
+        item:
+          type: string
+        cost:
+          type: number
+        quantity:
+          type: number
+          default: 1
+        measure:
+          type: string
+        location:
+          type: string
+        shop:
+          type: string
+        details:
+          type: string
+        tag:
+          type: string
+        date:
+          type: string
+          format: date
+        receipt_ref:
+          type: string
+        transaction_id:
+          type: string
+          description: Link to bank transaction
+
+    SpendingEntryUpdate:
+      type: object
+      properties:
+        item:
+          type: string
+        cost:
+          type: number
+        quantity:
+          type: number
+        measure:
+          type: string
+        location:
+          type: string
+        shop:
+          type: string
+        details:
+          type: string
+        tag:
+          type: string
+        date:
+          type: string
+          format: date
+        receipt_ref:
+          type: string
+
+    SpendingSummary:
+      type: object
+      properties:
+        total_cost:
+          type: number
+        transaction_count:
+          type: integer
+        latest_transaction_date:
+          type: string
+          format: date-time
+        uncategorized_count:
+          type: integer
+        by_category:
+          type: object
+          additionalProperties:
+            type: number
+        by_shop:
+          type: object
+          additionalProperties:
+            type: number
+        by_tag:
+          type: object
+          additionalProperties:
+            type: number
+
+    IncomeEntry:
+      type: object
+      properties:
+        Gross Income:
+          type: number
+        Salary Sacrifice:
+          type: number
+        Tax:
+          type: number
+        Income:
+          type: number
+        Date:
+          type: string
+          format: date
+        Employer:
+          type: string
+        Description:
+          type: string
+        Taxable:
+          type: string
+        Financial Year:
+          type: string
+        Taxable Income:
+          type: number
+
+    IncomeEntryCreate:
+      type: object
+      required:
+        - gross_income
+        - income
+        - date
+        - employer
+      properties:
+        gross_income:
+          type: number
+        salary_sacrifice:
+          type: number
+          default: 0
+        tax:
+          type: number
+          default: 0
+        income:
+          type: number
+        date:
+          type: string
+          format: date
+        employer:
+          type: string
+        description:
+          type: string
+        taxable:
+          type: string
+          enum: ["Taxable", "Non-Taxable", "Franked Dividends"]
+        comment:
+          type: string
+
+    IncomeSummary:
+      type: object
+      properties:
+        total_gross:
+          type: number
+        total_tax:
+          type: number
+        total_net:
+          type: number
+        by_financial_year:
+          type: object
+        by_employer:
+          type: object
+
+    Location:
+      type: object
+      properties:
+        Location:
+          type: string
+        Latitude:
+          type: number
+        Longitude:
+          type: number
+
+    LocationCreate:
+      type: object
+      required:
+        - location
+      properties:
+        location:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+
+    LocationUpdate:
+      type: object
+      properties:
+        latitude:
+          type: number
+        longitude:
+          type: number
+
+    GeocodeResponse:
+      type: object
+      properties:
+        address:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        display_name:
+          type: string
+
+    HierarchyBatchUpdate:
+      type: object
+      required:
+        - entries
+      properties:
+        entries:
+          type: array
+          items:
+            type: object
+
+    Transaction:
+      type: object
+      properties:
+        transactionId:
+          type: string
+        Date:
+          type: string
+          format: date-time
+        Shop:
+          type: string
+        Cost:
+          type: number
+        Upbank Category:
+          type: string
+        Upbank Text:
+          type: string
+
+    SystemStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "ok"
+        timestamp:
+          type: string
+          format: date-time
+        data_source:
+          type: string
+          enum: ["EXCEL", "NEXTCLOUD"]
+        counts:
+          type: object
+          properties:
+            spending:
+              type: integer
+            income:
+              type: integer
+            locations:
+              type: integer
+            categories:
+              type: integer
+            sub_categories:
+              type: integer
+            items:
+              type: integer
+        latest_transactions:
+          type: object
+          properties:
+            spending:
+              type: string
+              format: date-time
+            income:
+              type: string
+              format: date-time

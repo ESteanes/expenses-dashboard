@@ -1,0 +1,25 @@
+meta {
+  name: Update Categories
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{baseUrl}}/api/hierarchy/categories
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "entries": [
+      {"Category": "Living", "Sub Category": "Food"},
+      {"Category": "Living", "Sub Category": "Housing"},
+      {"Category": "Transport", "Sub Category": "Fuel"}
+    ]
+  }
+}
+
+docs {
+  Batch update categories. This replaces the entire categories table.
+}

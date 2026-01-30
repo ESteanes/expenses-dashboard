@@ -1,0 +1,27 @@
+meta {
+  name: Create Income
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/income
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "gross_income": 5000,
+    "tax": 1200,
+    "income": 3800,
+    "date": "2024-01-15",
+    "employer": "Acme Corp",
+    "description": "Salary",
+    "taxable": "Taxable"
+  }
+}
+
+docs {
+  Create a new income entry
+}

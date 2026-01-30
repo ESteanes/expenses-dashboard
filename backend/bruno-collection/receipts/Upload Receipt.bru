@@ -1,0 +1,21 @@
+meta {
+  name: Upload Receipt
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/receipts
+  body: multipartForm
+  auth: none
+}
+
+body:multipart-form {
+  file: @file(/path/to/receipt.jpg)
+  receipt_date: 2024-01-15
+}
+
+docs {
+  Upload a new receipt image or PDF.
+  Note: Change the file path to your actual receipt file.
+}

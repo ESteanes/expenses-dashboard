@@ -1,0 +1,21 @@
+meta {
+  name: Geocode Address
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/locations/geocode
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "address": "123 George Street, Sydney NSW, Australia"
+  }
+}
+
+docs {
+  Look up coordinates for an address using OpenStreetMap Nominatim
+}

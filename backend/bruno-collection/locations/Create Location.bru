@@ -1,0 +1,23 @@
+meta {
+  name: Create Location
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/locations
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "location": "Sydney CBD",
+    "latitude": -33.8688,
+    "longitude": 151.2093
+  }
+}
+
+docs {
+  Create a new location with coordinates
+}

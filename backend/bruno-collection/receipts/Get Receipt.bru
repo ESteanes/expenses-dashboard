@@ -1,0 +1,16 @@
+meta {
+  name: Get Receipt
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/receipts/2024-01-15_example.jpg
+  body: none
+  auth: none
+}
+
+docs {
+  Get receipt image or PDF by reference.
+  Replace the receipt_ref in the URL with an actual reference.
+}

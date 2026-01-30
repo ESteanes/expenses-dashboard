@@ -1,0 +1,15 @@
+meta {
+  name: Get Missing Locations
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/locations/missing
+  body: none
+  auth: none
+}
+
+docs {
+  Get locations from spending data that don't have coordinates yet
+}
