@@ -2,10 +2,9 @@
 from typing import List
 
 from fastapi import APIRouter, HTTPException
-from geopy.geocoders import Nominatim
-from pydantic import BaseModel
 import pandas as pd
 
+from backend.dependencies import SpendingServiceDep, GeolocatorDep
 from backend.schemas.location import (
     Location,
     LocationCreate,
@@ -13,27 +12,19 @@ from backend.schemas.location import (
     GeocodeRequest,
     GeocodeResponse,
 )
-from backend.services.spending import get_spending_service
-from backend.services.datamanipulator import FileType, TableName
 
 router = APIRouter()
 
-# Geocoder instance
-geolocator = Nominatim(user_agent="expenses-dashboard")
-
 
 @router.get("", response_model=List[dict])
-async def list_locations():
+async def list_locations(service: SpendingServiceDep):
     """Get all locations."""
-    service = get_spending_service()
     return service.location.to_dict(orient='records')
 
 
 @router.get("/missing")
-async def get_missing_locations():
+async def get_missing_locations(service: SpendingServiceDep):
     """Get locations from spending that don't have coordinates."""
-    service = get_spending_service()
-
     # Get unique locations from spending
     spending_locations = set(service.spending['Location'].dropna().unique())
 
@@ -50,10 +41,8 @@ async def get_missing_locations():
 
 
 @router.post("", response_model=dict)
-async def create_location(location: LocationCreate):
+async def create_location(service: SpendingServiceDep, location: LocationCreate):
     """Create a new location."""
-    service = get_spending_service()
-
     new_row = pd.DataFrame([{
         "Location": location.location,
         "Latitude": location.latitude,
@@ -67,9 +56,12 @@ async def create_location(location: LocationCreate):
 
 
 @router.put("/{location_name}")
-async def update_location(location_name: str, update: LocationUpdate):
+async def update_location(
+    service: SpendingServiceDep,
+    location_name: str,
+    update: LocationUpdate,
+):
     """Update location coordinates."""
-    service = get_spending_service()
     df = service.location.copy()
 
     # Find the location
@@ -90,7 +82,7 @@ async def update_location(location_name: str, update: LocationUpdate):
 
 
 @router.post("/geocode", response_model=GeocodeResponse)
-async def geocode_address(request: GeocodeRequest):
+async def geocode_address(geolocator: GeolocatorDep, request: GeocodeRequest):
     """Geocode an address using Nominatim."""
     try:
         location = geolocator.geocode(request.address)

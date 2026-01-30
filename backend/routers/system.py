@@ -3,20 +3,23 @@ from datetime import datetime
 
 from fastapi import APIRouter
 
-from backend.services.datamanipulator import get_data_manipulator
-from backend.services.spending import get_spending_service, invalidate_spending_cache
-from backend.services.income import get_income_service, invalidate_income_cache
+from backend.dependencies import (
+    DataManipulatorDep,
+    SpendingServiceDep,
+    IncomeServiceDep,
+    invalidate_caches,
+)
 
 router = APIRouter()
 
 
 @router.get("/status")
-async def get_status():
+async def get_status(
+    dm: DataManipulatorDep,
+    spending_service: SpendingServiceDep,
+    income_service: IncomeServiceDep,
+):
     """Get system status and data source info."""
-    dm = get_data_manipulator()
-    spending_service = get_spending_service()
-    income_service = get_income_service()
-
     # Get counts
     try:
         spending_count = len(spending_service.spending)
@@ -71,8 +74,7 @@ async def get_status():
 @router.post("/refresh")
 async def refresh_data():
     """Clear all caches and force data refresh."""
-    invalidate_spending_cache()
-    invalidate_income_cache()
+    invalidate_caches()
 
     return {
         "success": True,

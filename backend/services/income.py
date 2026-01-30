@@ -212,20 +212,3 @@ class IncomeService:
         self._deductions = None
 
 
-# Service instance cache
-_income_service: Optional[IncomeService] = None
-
-
-def get_income_service() -> IncomeService:
-    """Get or create income service instance."""
-    global _income_service
-    if _income_service is None:
-        _income_service = IncomeService()
-    return _income_service
-
-
-def invalidate_income_cache():
-    """Invalidate income service cache."""
-    global _income_service
-    if _income_service:
-        _income_service.invalidate_cache()

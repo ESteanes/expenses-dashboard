@@ -145,13 +145,3 @@ class ReceiptService:
         return self.IMAGE_TYPE
 
 
-# Service instance cache
-_receipt_service: Optional[ReceiptService] = None
-
-
-def get_receipt_service() -> ReceiptService:
-    """Get or create receipt service instance."""
-    global _receipt_service
-    if _receipt_service is None:
-        _receipt_service = ReceiptService()
-    return _receipt_service

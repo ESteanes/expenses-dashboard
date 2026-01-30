@@ -4,18 +4,19 @@ from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Query
 
+from backend.dependencies import IncomeServiceDep
 from backend.schemas.income import (
     IncomeEntry,
     IncomeEntryCreate,
     IncomeSummary,
 )
-from backend.services.income import get_income_service
 
 router = APIRouter()
 
 
 @router.get("", response_model=List[dict])
 async def list_income(
+    service: IncomeServiceDep,
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
     employers: Optional[List[str]] = Query(None),
@@ -23,7 +24,6 @@ async def list_income(
     financial_years: Optional[List[str]] = Query(None),
 ):
     """Get list of income entries with optional filters."""
-    service = get_income_service()
     return service.get_income_list(
         start_date=start_date,
         end_date=end_date,
@@ -35,18 +35,17 @@ async def list_income(
 
 @router.get("/summary", response_model=IncomeSummary)
 async def get_income_summary(
+    service: IncomeServiceDep,
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
 ):
     """Get income summary statistics."""
-    service = get_income_service()
     return service.get_summary(start_date=start_date, end_date=end_date)
 
 
 @router.get("/filters")
-async def get_filter_options():
+async def get_filter_options(service: IncomeServiceDep):
     """Get unique values for filter dropdowns."""
-    service = get_income_service()
     return {
         "employers": service.get_unique_values("Employer"),
         "descriptions": service.get_unique_values("Description"),
@@ -55,16 +54,14 @@ async def get_filter_options():
 
 
 @router.get("/deductions", response_model=List[dict])
-async def list_deductions():
+async def list_deductions(service: IncomeServiceDep):
     """Get list of deduction entries."""
-    service = get_income_service()
     return service.deductions.to_dict(orient='records')
 
 
 @router.post("", response_model=dict)
-async def create_income_entry(entry: IncomeEntryCreate):
+async def create_income_entry(service: IncomeServiceDep, entry: IncomeEntryCreate):
     """Create a new income entry."""
-    service = get_income_service()
     try:
         return service.create_entry(entry.model_dump(by_alias=False))
     except Exception as e:
@@ -72,9 +69,8 @@ async def create_income_entry(entry: IncomeEntryCreate):
 
 
 @router.delete("/{index}")
-async def delete_income_entry(index: int):
+async def delete_income_entry(service: IncomeServiceDep, index: int):
     """Delete an income entry."""
-    service = get_income_service()
     try:
         service.delete_entry(index)
         return {"success": True}

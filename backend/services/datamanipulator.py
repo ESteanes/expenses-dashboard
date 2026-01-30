@@ -240,13 +240,3 @@ class DataManipulator:
         return self.datasource.value
 
 
-# Singleton instance
-_data_manipulator: DataManipulator = None
-
-
-def get_data_manipulator() -> DataManipulator:
-    """Get or create singleton DataManipulator instance."""
-    global _data_manipulator
-    if _data_manipulator is None:
-        _data_manipulator = DataManipulator()
-    return _data_manipulator

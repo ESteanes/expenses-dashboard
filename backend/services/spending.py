@@ -294,20 +294,3 @@ class SpendingService:
         self._combined = None
 
 
-# Service instance cache
-_spending_service: Optional[SpendingService] = None
-
-
-def get_spending_service() -> SpendingService:
-    """Get or create spending service instance."""
-    global _spending_service
-    if _spending_service is None:
-        _spending_service = SpendingService()
-    return _spending_service
-
-
-def invalidate_spending_cache():
-    """Invalidate spending service cache."""
-    global _spending_service
-    if _spending_service:
-        _spending_service.invalidate_cache()

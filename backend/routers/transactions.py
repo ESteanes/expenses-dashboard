@@ -2,12 +2,13 @@
 from datetime import datetime
 import os
 from typing import Optional, List
-from datetime import date
 from io import StringIO
 
 from fastapi import APIRouter, HTTPException, Query
 import pandas as pd
 import requests
+
+from backend.dependencies import SpendingServiceDep
 
 router = APIRouter()
 
@@ -42,14 +43,13 @@ def clean_transaction_data(df: pd.DataFrame) -> pd.DataFrame:
     return clean
 
 
-@router.get("")
-async def get_transactions(
-    start_date: Optional[datetime] = Query(None),
-    end_date: Optional[datetime] = Query(None),
-    account_id: str = Query(DEFAULT_ACCOUNT_ID),
-    transaction_types: Optional[List[str]] = Query(None),
-):
-    """Get transactions from Up Bank via Expense Manager."""
+async def fetch_transactions(
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    account_id: str = DEFAULT_ACCOUNT_ID,
+    transaction_types: Optional[List[str]] = None,
+) -> List[dict]:
+    """Fetch transactions from Expense Manager."""
     if start_date is None:
         start_date = (pd.Timestamp.today() - pd.DateOffset(months=1)).date()
     if end_date is None:
@@ -84,19 +84,33 @@ async def get_transactions(
         )
 
 
+@router.get("")
+async def get_transactions(
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None),
+    account_id: str = Query(DEFAULT_ACCOUNT_ID),
+    transaction_types: Optional[List[str]] = Query(None),
+):
+    """Get transactions from Up Bank via Expense Manager."""
+    return await fetch_transactions(
+        start_date=start_date,
+        end_date=end_date,
+        account_id=account_id,
+        transaction_types=transaction_types,
+    )
+
+
 @router.get("/uncategorized")
 async def get_uncategorized_transactions(
+    service: SpendingServiceDep,
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
 ):
     """Get transactions that haven't been categorized yet."""
-    from backend.services.spending import get_spending_service
-
     # Get all transactions
-    transactions = await get_transactions(start_date=start_date, end_date=end_date)
+    transactions = await fetch_transactions(start_date=start_date, end_date=end_date)
 
     # Get existing transaction IDs from spending
-    service = get_spending_service()
     existing_ids = set(service.spending['transactionId'].dropna().unique())
 
     # Filter to uncategorized

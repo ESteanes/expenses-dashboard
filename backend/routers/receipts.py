@@ -5,22 +5,20 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from fastapi.responses import Response
 
-from backend.services.receipt import get_receipt_service
+from backend.dependencies import ReceiptServiceDep
 
 router = APIRouter()
 
 
 @router.get("/{receipt_ref}")
-async def get_receipt(receipt_ref: str):
+async def get_receipt(service: ReceiptServiceDep, receipt_ref: str):
     """Get a receipt image."""
-    service = get_receipt_service()
     try:
         content, file_type = service.get_receipt(receipt_ref)
 
         if file_type == service.PDF_TYPE:
             media_type = "application/pdf"
         else:
-            # Determine image type from extension
             ext = receipt_ref.split(".")[-1].lower()
             media_type = f"image/{ext}" if ext in ["jpg", "jpeg", "png"] else "image/png"
 
@@ -30,9 +28,8 @@ async def get_receipt(receipt_ref: str):
 
 
 @router.get("/{receipt_ref}/base64")
-async def get_receipt_base64(receipt_ref: str):
+async def get_receipt_base64(service: ReceiptServiceDep, receipt_ref: str):
     """Get receipt as base64-encoded images."""
-    service = get_receipt_service()
     try:
         images = service.get_receipt_base64(receipt_ref)
         return {"images": images}
@@ -42,12 +39,12 @@ async def get_receipt_base64(receipt_ref: str):
 
 @router.post("")
 async def upload_receipt(
+    service: ReceiptServiceDep,
     file: UploadFile = File(...),
     receipt_date: date = Form(...),
     existing_ref: Optional[str] = Form(None),
 ):
     """Upload a new receipt."""
-    service = get_receipt_service()
     try:
         content = await file.read()
         ref = service.save_receipt(
@@ -62,9 +59,12 @@ async def upload_receipt(
 
 
 @router.post("/{receipt_ref}/rotate")
-async def rotate_receipt(receipt_ref: str, angle: int = 90):
+async def rotate_receipt(
+    service: ReceiptServiceDep,
+    receipt_ref: str,
+    angle: int = 90,
+):
     """Rotate a receipt image."""
-    service = get_receipt_service()
     try:
         service.rotate_receipt(receipt_ref, angle)
         return {"success": True}
@@ -75,8 +75,7 @@ async def rotate_receipt(receipt_ref: str, angle: int = 90):
 
 
 @router.delete("/{receipt_ref}")
-async def delete_receipt(receipt_ref: str):
+async def delete_receipt(service: ReceiptServiceDep, receipt_ref: str):
     """Delete a receipt."""
-    service = get_receipt_service()
     deleted = service.delete_receipt(receipt_ref)
     return {"success": deleted}
