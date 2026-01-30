@@ -10,6 +10,7 @@ import {
   Bug,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { AddExpenseDialog } from '@/components/forms/AddExpenseDialog'
 
 const navItems = [
   { to: '/', label: 'Home', icon: Home },
@@ -47,6 +48,10 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
+
+      <div className="mt-6 pt-6 border-t">
+        <AddExpenseDialog triggerLabel="Quick Add" triggerVariant="outline" />
+      </div>
     </aside>
   )
 }
