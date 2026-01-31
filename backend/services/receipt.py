@@ -9,7 +9,7 @@ from typing import Optional, List
 from PIL import Image
 from pdf2image import convert_from_bytes
 
-from .datamanipulator import DataManipulator, DataSource, get_data_manipulator
+from .datamanipulator import DataManipulator, DataSource
 
 
 class ReceiptService:
@@ -19,8 +19,8 @@ class ReceiptService:
     PDF_TYPE = "application/pdf"
     IMAGE_TYPE = "image"
 
-    def __init__(self, data_manipulator: DataManipulator = None):
-        self.data_manipulator = data_manipulator or get_data_manipulator()
+    def __init__(self, data_manipulator: DataManipulator):
+        self.data_manipulator = data_manipulator
         self.datasource = self.data_manipulator.datasource
 
     def get_receipt_path(self, receipt_ref: str) -> str:

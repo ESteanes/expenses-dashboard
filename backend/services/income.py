@@ -10,7 +10,6 @@ from .datamanipulator import (
     FileType,
     TableName,
     remove_unnamed_columns,
-    get_data_manipulator,
 )
 
 
@@ -28,8 +27,8 @@ def calculate_financial_year(dt: datetime) -> Optional[str]:
 class IncomeService:
     """Service for managing income data."""
 
-    def __init__(self, data_manipulator: DataManipulator = None):
-        self.data_manipulator = data_manipulator or get_data_manipulator()
+    def __init__(self, data_manipulator: DataManipulator):
+        self.data_manipulator = data_manipulator
         self._income: Optional[DataFrame] = None
         self._deductions: Optional[DataFrame] = None
 

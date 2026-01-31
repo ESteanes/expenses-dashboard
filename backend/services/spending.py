@@ -10,7 +10,6 @@ from .datamanipulator import (
     FileType,
     TableName,
     remove_unnamed_columns,
-    get_data_manipulator,
 )
 
 SPENDING_DATA_SCHEMA = [
@@ -32,8 +31,8 @@ SPENDING_DATA_SCHEMA = [
 class SpendingService:
     """Service for managing spending data."""
 
-    def __init__(self, data_manipulator: DataManipulator = None):
-        self.data_manipulator = data_manipulator or get_data_manipulator()
+    def __init__(self, data_manipulator: DataManipulator):
+        self.data_manipulator = data_manipulator
         self._spending: Optional[DataFrame] = None
         self._location: Optional[DataFrame] = None
         self._base_table: Optional[DataFrame] = None
