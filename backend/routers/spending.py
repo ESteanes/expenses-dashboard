@@ -68,15 +68,18 @@ async def get_recent_spending(
 
 
 @router.get("/filters")
-async def get_filter_options(service: SpendingServiceDep):
+async def get_filter_options(
+    service: SpendingServiceDep,
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None)):
     """Get unique values for filter dropdowns."""
     return {
-        "tags": service.get_unique_values("Tag"),
-        "shops": service.get_unique_values("Shop"),
-        "locations": service.get_unique_values("Location"),
-        "categories": service.get_unique_values("Category"),
-        "sub_categories": service.get_unique_values("Sub Category"),
-        "sub_sub_categories": service.get_unique_values("Sub Sub Category"),
+        "tags": service.get_unique_values("Tag", start_date, end_date),
+        "shops": service.get_unique_values("Shop", start_date, end_date),
+        "locations": service.get_unique_values("Location", start_date, end_date),
+        "categories": service.get_unique_values("Category", start_date, end_date),
+        "sub_categories": service.get_unique_values("Sub Category", start_date, end_date),
+        "sub_sub_categories": service.get_unique_values("Sub Sub Category", start_date, end_date),
     }
 
 

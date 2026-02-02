@@ -5,9 +5,14 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/api/spending/filters
+  url: {{baseUrl}}/api/spending/filters?start_date=2025-08-01&end_date=2024-01-01
   body: none
   auth: none
+}
+
+params:query {
+  start_date: 2025-08-01
+  end_date: 2024-01-01
 }
 
 docs {

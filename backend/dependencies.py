@@ -17,25 +17,22 @@ def get_data_manipulator() -> DataManipulator:
     return DataManipulator()
 
 
-def get_spending_service(
-    data_manipulator: Annotated[DataManipulator, Depends(get_data_manipulator)]
-) -> SpendingService:
-    """Get SpendingService with injected DataManipulator."""
-    return SpendingService(data_manipulator)
+@lru_cache
+def get_spending_service() -> SpendingService:
+    """Get singleton SpendingService instance."""
+    return SpendingService(get_data_manipulator())
 
 
-def get_income_service(
-    data_manipulator: Annotated[DataManipulator, Depends(get_data_manipulator)]
-) -> IncomeService:
-    """Get IncomeService with injected DataManipulator."""
-    return IncomeService(data_manipulator)
+@lru_cache
+def get_income_service() -> IncomeService:
+    """Get singleton IncomeService instance."""
+    return IncomeService(get_data_manipulator())
 
 
-def get_receipt_service(
-    data_manipulator: Annotated[DataManipulator, Depends(get_data_manipulator)]
-) -> ReceiptService:
-    """Get ReceiptService with injected DataManipulator."""
-    return ReceiptService(data_manipulator)
+@lru_cache
+def get_receipt_service() -> ReceiptService:
+    """Get singleton ReceiptService instance."""
+    return ReceiptService(get_data_manipulator())
 
 
 @lru_cache
@@ -55,4 +52,7 @@ GeolocatorDep = Annotated[Nominatim, Depends(get_geolocator)]
 def invalidate_caches():
     """Clear all cached service instances."""
     get_data_manipulator.cache_clear()
+    get_spending_service.cache_clear()
+    get_income_service.cache_clear()
+    get_receipt_service.cache_clear()
     get_geolocator.cache_clear()

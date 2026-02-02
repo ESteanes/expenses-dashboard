@@ -276,9 +276,13 @@ class SpendingService:
             self._base_table
         )
 
-    def get_unique_values(self, column: str) -> List[str]:
+    def get_unique_values(self, column: str, start_date: Optional[datetime], end_date: Optional[datetime]) -> List[str]:
         """Get unique values for a column."""
         df = self.get_combined()
+        if start_date:
+            df = df[df['Date'] >= pd.Timestamp(start_date)]
+        if end_date:
+            df = df[df['Date'] <= pd.Timestamp(end_date)]
         if column not in df.columns:
             return []
         return df[column].dropna().unique().tolist()
