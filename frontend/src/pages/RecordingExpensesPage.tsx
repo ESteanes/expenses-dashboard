@@ -5,19 +5,18 @@ import { DateRangePicker } from '@/components/common/DateRangePicker'
 import { DataTable } from '@/components/common/DataTable'
 import { AddExpenseDialog } from '@/components/forms/AddExpenseDialog'
 import { fetchUncategorizedTransactions } from '@/api/transactions'
-import { formatCurrency, formatShortDate, getDateRange } from '@/lib/utils'
+import { formatCurrency, formatShortDate } from '@/lib/utils'
+import { useRecordingFilters } from '@/hooks/usePersistedFilters'
 import type { Transaction } from '@/types'
 
 export function RecordingExpensesPage() {
-  const defaultRange = getDateRange(30)
-  const [startDate, setStartDate] = useState(defaultRange.start)
-  const [endDate, setEndDate] = useState(defaultRange.end)
+  const [filters, setFilter] = useRecordingFilters()
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   const { data: transactions, isLoading } = useQuery({
-    queryKey: ['uncategorized-transactions', startDate, endDate],
-    queryFn: () => fetchUncategorizedTransactions(startDate, endDate),
+    queryKey: ['uncategorized-transactions', filters.startDate, filters.endDate],
+    queryFn: () => fetchUncategorizedTransactions(filters.startDate, filters.endDate),
   })
 
   const handleTransactionSelect = (transaction: Transaction) => {
@@ -73,10 +72,10 @@ export function RecordingExpensesPage() {
         {/* Sidebar */}
         <div className="w-64 space-y-6 shrink-0">
           <DateRangePicker
-            startDate={startDate}
-            endDate={endDate}
-            onStartDateChange={setStartDate}
-            onEndDateChange={setEndDate}
+            startDate={filters.startDate}
+            endDate={filters.endDate}
+            onStartDateChange={(date) => setFilter('startDate', date)}
+            onEndDateChange={(date) => setFilter('endDate', date)}
           />
           <div className="text-sm text-muted-foreground">
             {transactions?.length ?? 0} uncategorized transactions

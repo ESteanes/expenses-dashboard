@@ -1,34 +1,46 @@
-import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { LoadingPage } from '@/components/common/LoadingSpinner'
 import { DateRangePicker } from '@/components/common/DateRangePicker'
 import { DataTable } from '@/components/common/DataTable'
+import { SearchableFilterList } from '@/components/common/SearchableFilterList'
 import { BarChart } from '@/components/charts/BarChart'
+import { LocationMap, type MapLocation } from '@/components/charts/LocationMap'
 import { Button } from '@/components/ui/button'
 import { fetchSpending, fetchFilterOptions } from '@/api/spending'
-import { formatCurrency, formatShortDate, getDateRange } from '@/lib/utils'
+import { fetchLocations } from '@/api/locations'
+import { formatCurrency, formatShortDate } from '@/lib/utils'
+import { useSpendingFilters } from '@/hooks/usePersistedFilters'
 import type { SpendingEntry } from '@/types'
 
 export function DetailedSpendingPage() {
-  const defaultRange = getDateRange(30)
-  const [startDate, setStartDate] = useState(defaultRange.start)
-  const [endDate, setEndDate] = useState(defaultRange.end)
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
-  const [selectedShops, setSelectedShops] = useState<string[]>([])
+  const [filters, setFilter, clearFilters] = useSpendingFilters('detailed-spending', 30)
 
   const { data: filterOptions } = useQuery({
-    queryKey: ['spending-filters'],
-    queryFn: fetchFilterOptions,
+    queryKey: ['spending-filters', filters.startDate, filters.endDate],
+    queryFn: () => fetchFilterOptions(filters.startDate, filters.endDate),
+  })
+
+  const { data: locations } = useQuery({
+    queryKey: ['locations'],
+    queryFn: fetchLocations,
   })
 
   const { data: spending, isLoading } = useQuery({
-    queryKey: ['spending', startDate, endDate, selectedTags, selectedShops],
+    queryKey: [
+      'spending',
+      filters.startDate,
+      filters.endDate,
+      filters.tags,
+      filters.shops,
+      filters.locations,
+    ],
     queryFn: () =>
       fetchSpending({
-        start_date: startDate,
-        end_date: endDate,
-        tags: selectedTags.length > 0 ? selectedTags : undefined,
-        shops: selectedShops.length > 0 ? selectedShops : undefined,
+        start_date: filters.startDate,
+        end_date: filters.endDate,
+        tags: filters.tags.length > 0 ? filters.tags : undefined,
+        shops: filters.shops.length > 0 ? filters.shops : undefined,
+        locations: filters.locations.length > 0 ? filters.locations : undefined,
       }),
   })
 
@@ -55,6 +67,26 @@ export function DetailedSpendingPage() {
       ).map(([name, value]) => ({ name, value }))
     : []
 
+  // Prepare map data - aggregate spending by location
+  const spendingByLocation = spending
+    ? spending.reduce((acc: Record<string, number>, entry: SpendingEntry) => {
+        if (entry.Location) {
+          acc[entry.Location] = (acc[entry.Location] || 0) + entry.Cost
+        }
+        return acc
+      }, {})
+    : {}
+
+  const mapLocations: MapLocation[] = (locations ?? [])
+    .filter((loc) => loc.Latitude != null && loc.Longitude != null)
+    .map((loc) => ({
+      name: loc.Location,
+      latitude: loc.Latitude!,
+      longitude: loc.Longitude!,
+      value: spendingByLocation[loc.Location] || 0,
+    }))
+    .filter((loc) => loc.value > 0) // Only show locations with spending
+
   const totalCost = spending?.reduce((sum, e) => sum + e.Cost, 0) ?? 0
 
   const columns = [
@@ -67,6 +99,20 @@ export function DetailedSpendingPage() {
     { key: 'Category', label: 'Category' },
   ]
 
+  const toggleArrayFilter = (
+    key: 'tags' | 'shops' | 'locations',
+    value: string,
+    checked: boolean
+  ) => {
+    const current = filters[key]
+    if (checked) {
+      setFilter(key, [...current, value])
+    } else {
+      setFilter(key, current.filter((v) => v !== value))
+    }
+  }
+
+  const sortAlphabetically = (a: string, b: string): number => a.localeCompare(b)
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Detailed Spending</h1>
@@ -75,65 +121,40 @@ export function DetailedSpendingPage() {
         {/* Sidebar filters */}
         <div className="w-64 space-y-6 shrink-0">
           <DateRangePicker
-            startDate={startDate}
-            endDate={endDate}
-            onStartDateChange={setStartDate}
-            onEndDateChange={setEndDate}
+            startDate={filters.startDate}
+            endDate={filters.endDate}
+            onStartDateChange={(date) => setFilter('startDate', date)}
+            onEndDateChange={(date) => setFilter('endDate', date)}
           />
 
-          <div>
-            <h3 className="font-medium mb-2">Tags</h3>
-            <div className="space-y-1 max-h-40 overflow-auto">
-              {filterOptions?.tags.slice(0, 10).map((tag) => (
-                <label key={tag} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={selectedTags.includes(tag)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedTags([...selectedTags, tag])
-                      } else {
-                        setSelectedTags(selectedTags.filter((t) => t !== tag))
-                      }
-                    }}
-                  />
-                  {tag}
-                </label>
-              ))}
-            </div>
-          </div>
+          <SearchableFilterList
+            title="Tags"
+            options={filterOptions?.tags.sort(sortAlphabetically) ?? []}
+            selected={filters.tags}
+            onChange={(value, checked) => toggleArrayFilter('tags', value, checked)}
+          />
 
-          <div>
-            <h3 className="font-medium mb-2">Shops</h3>
-            <div className="space-y-1 max-h-40 overflow-auto">
-              {filterOptions?.shops.slice(0, 10).map((shop) => (
-                <label key={shop} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={selectedShops.includes(shop)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedShops([...selectedShops, shop])
-                      } else {
-                        setSelectedShops(selectedShops.filter((s) => s !== shop))
-                      }
-                    }}
-                  />
-                  {shop}
-                </label>
-              ))}
-            </div>
-          </div>
+          <SearchableFilterList
+            title="Shops"
+            options={filterOptions?.shops.sort(sortAlphabetically) ?? []}
+            selected={filters.shops}
+            onChange={(value, checked) => toggleArrayFilter('shops', value, checked)}
+          />
 
-          <Button
-            variant="outline"
-            onClick={() => {
-              setSelectedTags([])
-              setSelectedShops([])
-            }}
-          >
+          <SearchableFilterList
+            title="Locations"
+            options={filterOptions?.locations.sort(sortAlphabetically) ?? []}
+            selected={filters.locations}
+            onChange={(value, checked) => toggleArrayFilter('locations', value, checked)}
+          />
+
+          <Button variant="outline" onClick={clearFilters}>
             Clear Filters
           </Button>
+
+          <div className="text-sm text-muted-foreground pt-2 border-t">
+            Filters are saved automatically
+          </div>
         </div>
 
         {/* Main content */}
@@ -155,6 +176,24 @@ export function DetailedSpendingPage() {
               />
             </div>
           </div>
+
+          {/* Map visualization */}
+          {mapLocations.length > 0 && (
+            <div className="border rounded-lg p-4">
+              <h3 className="text-lg font-semibold mb-4">Spending by Location</h3>
+              <LocationMap
+                locations={mapLocations}
+                height={400}
+                showValues={true}
+                onMarkerClick={(loc) => {
+                  toggleArrayFilter('locations', loc.name, !filters.locations.includes(loc.name))
+                }}
+              />
+              <p className="text-sm text-muted-foreground mt-2">
+                Click markers to filter by location
+              </p>
+            </div>
+          )}
 
           <div className="border rounded-lg p-4">
             <h3 className="text-lg font-semibold mb-4">Transactions</h3>

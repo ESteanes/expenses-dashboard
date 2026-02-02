@@ -34,8 +34,13 @@ export async function fetchRecentSpending(days = 30): Promise<SpendingSummary> {
   return response.data
 }
 
-export async function fetchFilterOptions(): Promise<FilterOptions> {
-  const response = await apiClient.get<FilterOptions>('/spending/filters')
+export async function fetchFilterOptions(
+  startDate?: string,
+  endDate?: string): Promise<FilterOptions> {
+  const params = new URLSearchParams()
+  if (startDate) params.append('start_date', startDate)
+  if (endDate) params.append('end_date', endDate)
+  const response = await apiClient.get<FilterOptions>('/spending/filters', { params })
   return response.data
 }
 

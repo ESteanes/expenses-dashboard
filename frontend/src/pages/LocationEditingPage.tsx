@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { MapPin, Search } from 'lucide-react'
 import { LoadingPage } from '@/components/common/LoadingSpinner'
 import { DataTable } from '@/components/common/DataTable'
+import { LocationMap, type MapLocation } from '@/components/charts/LocationMap'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -59,6 +60,7 @@ export function LocationEditingPage() {
       queryClient.invalidateQueries({ queryKey: ['locations'] })
       queryClient.invalidateQueries({ queryKey: ['missing-locations'] })
       setCoordinates({ lat: '', lng: '' })
+      setSearchQuery('')
     },
   })
 
@@ -71,6 +73,13 @@ export function LocationEditingPage() {
       lng: location.Longitude?.toString() || '',
     })
     setSearchQuery(location.Location)
+  }
+
+  const handleMapMarkerClick = (mapLoc: MapLocation) => {
+    const location = locations?.find((l) => l.Location === mapLoc.name)
+    if (location) {
+      handleLocationSelect(location)
+    }
   }
 
   const handleSearch = () => {
@@ -98,6 +107,30 @@ export function LocationEditingPage() {
       })
     }
   }
+
+  // Prepare map locations
+  const mapLocations: MapLocation[] = (locations ?? [])
+    .filter((loc) => loc.Latitude != null && loc.Longitude != null)
+    .map((loc) => ({
+      name: loc.Location,
+      latitude: loc.Latitude!,
+      longitude: loc.Longitude!,
+    }))
+
+  // Add a marker for currently entered coordinates (for preview)
+  const previewLocation: MapLocation | null =
+    coordinates.lat && coordinates.lng && searchQuery
+      ? {
+          name: searchQuery,
+          latitude: parseFloat(coordinates.lat),
+          longitude: parseFloat(coordinates.lng),
+          details: 'Preview - not saved yet',
+        }
+      : null
+
+  const allMapLocations = previewLocation
+    ? [...mapLocations.filter((l) => l.name !== previewLocation.name), previewLocation]
+    : mapLocations
 
   const columns = [
     { key: 'Location', label: 'Location' },
@@ -136,6 +169,7 @@ export function LocationEditingPage() {
                   onClick={() => {
                     setSearchQuery(loc.location)
                     setSelectedLocation({ Location: loc.location })
+                    setCoordinates({ lat: '', lng: '' })
                   }}
                 >
                   {loc.location}
@@ -146,11 +180,29 @@ export function LocationEditingPage() {
         </Card>
       )}
 
+      {/* Map */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Location Map</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <LocationMap
+            locations={allMapLocations}
+            height={400}
+            selectedLocation={selectedLocation?.Location || searchQuery}
+            onMarkerClick={handleMapMarkerClick}
+          />
+          <p className="text-sm text-muted-foreground mt-2">
+            Click a marker to select and edit. Red marker shows current selection.
+          </p>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Location List */}
         <Card>
           <CardHeader>
-            <CardTitle>All Locations</CardTitle>
+            <CardTitle>All Locations ({locations?.length ?? 0})</CardTitle>
           </CardHeader>
           <CardContent>
             <DataTable
@@ -178,16 +230,19 @@ export function LocationEditingPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Enter address to search"
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 />
-                <Button
-                  onClick={handleSearch}
-                  disabled={geocodeMutation.isPending}
-                >
+                <Button onClick={handleSearch} disabled={geocodeMutation.isPending}>
                   <Search className="h-4 w-4" />
                 </Button>
               </div>
               {geocodeMutation.error && (
                 <p className="text-sm text-destructive">Address not found</p>
+              )}
+              {geocodeMutation.data && (
+                <p className="text-sm text-muted-foreground">
+                  Found: {geocodeMutation.data.display_name}
+                </p>
               )}
             </div>
 
@@ -199,9 +254,7 @@ export function LocationEditingPage() {
                   type="number"
                   step="0.0001"
                   value={coordinates.lat}
-                  onChange={(e) =>
-                    setCoordinates({ ...coordinates, lat: e.target.value })
-                  }
+                  onChange={(e) => setCoordinates({ ...coordinates, lat: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
@@ -211,32 +264,49 @@ export function LocationEditingPage() {
                   type="number"
                   step="0.0001"
                   value={coordinates.lng}
-                  onChange={(e) =>
-                    setCoordinates({ ...coordinates, lng: e.target.value })
-                  }
+                  onChange={(e) => setCoordinates({ ...coordinates, lng: e.target.value })}
                 />
               </div>
             </div>
 
-            {selectedLocation && (
-              <Button
-                onClick={handleSave}
-                disabled={updateMutation.isPending || !coordinates.lat || !coordinates.lng}
-                className="w-full"
-              >
-                {updateMutation.isPending ? 'Saving...' : 'Save Location'}
-              </Button>
-            )}
+            <div className="flex gap-2">
+              {selectedLocation?.Latitude != null ? (
+                <Button
+                  onClick={handleSave}
+                  disabled={updateMutation.isPending || !coordinates.lat || !coordinates.lng}
+                  className="flex-1"
+                >
+                  {updateMutation.isPending ? 'Saving...' : 'Update Location'}
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => handleCreateMissing(searchQuery || selectedLocation?.Location || '')}
+                  disabled={
+                    createMutation.isPending ||
+                    !coordinates.lat ||
+                    !coordinates.lng ||
+                    (!searchQuery && !selectedLocation?.Location)
+                  }
+                  className="flex-1"
+                >
+                  {createMutation.isPending ? 'Creating...' : 'Create Location'}
+                </Button>
+              )}
 
-            {!selectedLocation && searchQuery && (
-              <Button
-                onClick={() => handleCreateMissing(searchQuery)}
-                disabled={createMutation.isPending || !coordinates.lat || !coordinates.lng}
-                className="w-full"
-              >
-                {createMutation.isPending ? 'Creating...' : 'Create New Location'}
-              </Button>
-            )}
+              {(selectedLocation || searchQuery) && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedLocation(null)
+                    setSearchQuery('')
+                    setCoordinates({ lat: '', lng: '' })
+                    geocodeMutation.reset()
+                  }}
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
